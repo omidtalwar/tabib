@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -r \"echo password_hash\\('admin123', PASSWORD_DEFAULT\\);\")",
+      "Bash('c:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root mmi_collection -e ' *)"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Sidebar slide transition */
+#sidebar {
+    transition: transform 0.3s ease;
+}
+
+/* JS adds this class to hide the sidebar */
+#sidebar.sidebar-hidden {
+    transform: translateX(-100%);
+}
+
+/* Mobile overlay (shown when sidebar is open on small screens) */
+#sidebarOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 35;
+}
+#sidebarOverlay.active {
+    display: block;
+}
+
+/* Quick nav card min height */
+.quick-card {
+    min-height: 110px;
+}
+
+/* Submenu hidden by default (jQuery controls show/hide) */
+.sidebar-submenu {
+    display: none;
+}
