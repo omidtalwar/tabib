@@ -15,64 +15,78 @@ $teachers = $pdo->query(
 <?php include __DIR__ . '/../../includes/sidebar.php'; ?>
 
 <main id="mainContent" class="ml-56 mt-14 p-6 transition-all duration-300">
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-xl font-bold text-gray-800">Teachers</h1>
-        <a href="add.php"
-           class="bg-blue-800 hover:bg-blue-900 text-white text-sm px-4 py-2 rounded-lg transition">
-            + Add Teacher
+
+    <div class="flex justify-between items-center mb-5 fluent-fade-in">
+        <div>
+            <h1 class="fluent-h1">Teachers</h1>
+            <p class="fluent-caption mt-1"><?= count($teachers) ?> registered teacher<?= count($teachers) !== 1 ? 's' : '' ?></p>
+        </div>
+        <a href="add.php" class="fluent-btn-accent fluent-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Teacher
         </a>
     </div>
 
     <?php if (isset($_GET['deleted'])): ?>
-    <div class="bg-green-100 text-green-800 border border-green-300 rounded-lg px-4 py-3 mb-5 text-sm" data-flash>
-        Teacher deleted successfully.
-    </div>
+    <div class="fluent-alert fluent-alert-success" data-flash>Teacher deleted successfully.</div>
     <?php endif; ?>
     <?php if (isset($_GET['error']) && $_GET['error'] === 'self'): ?>
-    <div class="bg-red-50 text-red-700 border border-red-300 rounded-lg px-4 py-3 mb-5 text-sm" data-flash>
-        You cannot delete your own account.
-    </div>
+    <div class="fluent-alert fluent-alert-danger" data-flash>You cannot delete your own account.</div>
     <?php endif; ?>
 
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table class="w-full text-sm">
-            <thead class="bg-blue-900 text-white">
+    <div class="fluent-card overflow-hidden fluent-fade-in" style="animation-delay:60ms;">
+        <table class="fluent-table">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left font-medium">Name</th>
-                    <th class="px-4 py-3 text-left font-medium">Email</th>
-                    <th class="px-4 py-3 text-left font-medium">Qualification</th>
-                    <th class="px-4 py-3 text-left font-medium">Joined</th>
-                    <th class="px-4 py-3 text-left font-medium">Status</th>
-                    <th class="px-4 py-3 text-left font-medium">Actions</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Qualification</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($teachers)): ?>
-            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">No teachers found.</td></tr>
+            <tr>
+                <td colspan="6" style="text-align:center; padding: 40px 16px; color: var(--text-tertiary);">
+                    No teachers found. <a href="add.php" style="color:var(--accent);">Add the first one →</a>
+                </td>
+            </tr>
             <?php endif; ?>
-            <?php foreach ($teachers as $i => $t): ?>
-            <tr class="<?= $i % 2 === 0 ? 'bg-white' : 'bg-gray-50' ?> border-b border-gray-100 hover:bg-blue-50 transition">
-                <td class="px-4 py-3 font-medium"><?= htmlspecialchars($t['name']) ?></td>
-                <td class="px-4 py-3 text-gray-500"><?= htmlspecialchars($t['email']) ?></td>
-                <td class="px-4 py-3 text-gray-500"><?= htmlspecialchars($t['qualification'] ?? '—') ?></td>
-                <td class="px-4 py-3 text-gray-500"><?= $t['joining_date'] ?? '—' ?></td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 rounded-full text-xs font-semibold
-                        <?= $t['status'] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600' ?>">
+            <?php foreach ($teachers as $t): ?>
+            <tr>
+                <td>
+                    <div class="flex items-center gap-3">
+                        <div class="fluent-avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0;">
+                            <?= strtoupper(substr($t['name'], 0, 1)) ?>
+                        </div>
+                        <span style="font-weight:600;"><?= htmlspecialchars($t['name']) ?></span>
+                    </div>
+                </td>
+                <td style="color:var(--text-secondary);"><?= htmlspecialchars($t['email']) ?></td>
+                <td style="color:var(--text-secondary);"><?= htmlspecialchars($t['qualification'] ?? '—') ?></td>
+                <td style="color:var(--text-secondary);"><?= $t['joining_date'] ?? '—' ?></td>
+                <td>
+                    <span class="fluent-badge <?= $t['status'] ? 'fluent-badge-success' : 'fluent-badge-danger' ?>">
                         <?= $t['status'] ? 'Active' : 'Inactive' ?>
                     </span>
                 </td>
-                <td class="px-4 py-3">
+                <td>
                     <div class="flex items-center gap-3">
                         <a href="edit.php?id=<?= $t['id'] ?>"
-                           class="text-blue-600 hover:underline text-xs font-medium">Edit</a>
+                           class="fluent-btn" style="padding:4px 12px;font-size:12px;">Edit</a>
                         <a href="courses.php?id=<?= $t['id'] ?>"
-                           class="text-emerald-600 hover:underline text-xs font-medium">Courses</a>
+                           class="fluent-btn" style="padding:4px 12px;font-size:12px;color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent);">Courses</a>
                         <form method="POST" action="delete.php"
                               onsubmit="return confirm('Delete <?= htmlspecialchars(addslashes($t['name'])) ?>? This cannot be undone.')">
                             <input type="hidden" name="id" value="<?= $t['id'] ?>">
-                            <button type="submit"
-                                    class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                            <button type="submit" class="fluent-btn"
+                                    style="padding:4px 12px;font-size:12px;color:#c42b1c;border-color:color-mix(in srgb,#c42b1c 30%,transparent);">
+                                Delete
+                            </button>
                         </form>
                     </div>
                 </td>

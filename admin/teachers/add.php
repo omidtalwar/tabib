@@ -7,11 +7,11 @@ $pageTitle = 'Add Teacher — ' . SITE_NAME;
 $error = $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name    = trim($_POST['name']         ?? '');
-    $email   = trim($_POST['email']        ?? '');
-    $password= trim($_POST['password']     ?? '');
+    $name    = trim($_POST['name']          ?? '');
+    $email   = trim($_POST['email']         ?? '');
+    $password= trim($_POST['password']      ?? '');
     $qual    = trim($_POST['qualification'] ?? '');
-    $joined  = $_POST['joining_date']      ?? null;
+    $joined  = $_POST['joining_date']       ?? null;
 
     if (!$name || !$email || !$password) {
         $error = 'Name, email, and password are required.';
@@ -37,53 +37,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php include __DIR__ . '/../../includes/sidebar.php'; ?>
 
 <main id="mainContent" class="ml-56 mt-14 p-6 transition-all duration-300">
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-xl font-bold text-gray-800">Add Teacher</h1>
-        <a href="index.php" class="text-sm text-blue-600 hover:underline">← Back to list</a>
+
+    <div class="flex justify-between items-center mb-5 fluent-fade-in">
+        <div>
+            <h1 class="fluent-h1">Add Teacher</h1>
+            <p class="fluent-caption mt-1">Register a new teacher account.</p>
+        </div>
+        <a href="index.php" class="fluent-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Back
+        </a>
     </div>
 
     <?php if ($success): ?>
-    <div class="bg-green-100 text-green-800 border border-green-300 rounded-lg px-4 py-3 mb-5 text-sm" data-flash>
-        <?= htmlspecialchars($success) ?>
-    </div>
+    <div class="fluent-alert fluent-alert-success" data-flash><?= htmlspecialchars($success) ?></div>
     <?php endif; ?>
     <?php if ($error): ?>
-    <div class="bg-red-50 text-red-700 border border-red-300 rounded-lg px-4 py-3 mb-5 text-sm" data-flash>
-        <?= htmlspecialchars($error) ?>
-    </div>
+    <div class="fluent-alert fluent-alert-danger" data-flash><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <div class="bg-white rounded-xl shadow-sm p-6 max-w-lg">
-        <form method="POST" class="space-y-4">
+    <div class="fluent-card p-6 max-w-lg fluent-fade-in" style="animation-delay:60ms;">
+        <form method="POST" class="space-y-5">
+
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                <input type="text" name="name" required
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <label class="fluent-label block mb-1.5">Full Name *</label>
+                <div class="fluent-input">
+                    <input type="text" name="name" required placeholder="e.g. Dr. John Smith">
+                </div>
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input type="email" name="email" required
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <label class="fluent-label block mb-1.5">Email Address *</label>
+                <div class="fluent-input">
+                    <input type="email" name="email" required placeholder="teacher@school.edu">
+                </div>
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                <input type="password" name="password" required minlength="6"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <label class="fluent-label block mb-1.5">Password *</label>
+                <div class="fluent-input">
+                    <input type="password" name="password" required minlength="6" placeholder="Min. 6 characters">
+                </div>
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Qualification</label>
-                <input type="text" name="qualification" placeholder="e.g. M.Sc. Mathematics"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <label class="fluent-label block mb-1.5">Qualification</label>
+                <div class="fluent-input">
+                    <input type="text" name="qualification" placeholder="e.g. M.Sc. Mathematics">
+                </div>
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
-                <input type="date" name="joining_date"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <label class="fluent-label block mb-1.5">Joining Date</label>
+                <div class="fluent-input">
+                    <input type="date" name="joining_date">
+                </div>
             </div>
-            <button type="submit"
-                    class="bg-blue-800 hover:bg-blue-900 text-white font-semibold px-6 py-2 rounded-lg text-sm transition">
-                Save Teacher
-            </button>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="fluent-btn-accent fluent-btn">Save Teacher</button>
+                <a href="index.php" class="fluent-btn">Cancel</a>
+            </div>
         </form>
     </div>
 </main>
