@@ -8,3 +8,4 @@ if (is_logged_in()) {
     header('Location: ' . BASE_URL . '/auth/login.php');
 }
 exit;
+// Good working...
