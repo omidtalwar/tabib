@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -r \"echo password_hash\\('admin123', PASSWORD_DEFAULT\\);\")",
+      "Bash('c:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root mmi_collection -e ' *)",
+      "PowerShell(Get-ChildItem \"c:\\\\xampp\\\\htdocs\\\\mmicollection\\\\database\\\\\"; if \\(-not \\(Test-Path \"c:\\\\xampp\\\\htdocs\\\\mmicollection\\\\admin\\\\drive\"\\)\\) { New-Item -ItemType Directory -Path \"c:\\\\xampp\\\\htdocs\\\\mmicollection\\\\admin\\\\drive\" | Out-Null; \"drive dir created\" } else { \"drive dir exists\" })",
+      "WebFetch(domain:fzlstocks.shop)"
+    ]
+  }
+}

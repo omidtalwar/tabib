@@ -1,0 +1,32 @@
+/* Sidebar slide transition */
+#sidebar {
+    transition: transform 0.3s ease;
+}
+#sidebar.sidebar-hidden {
+    transform: translateX(-100%);
+}
+
+/* Mobile overlay */
+#sidebarOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 35;
+    backdrop-filter: blur(2px);
+}
+#sidebarOverlay.active { display: block; }
+
+/* Submenu hidden by default */
+.sidebar-submenu { display: none; }
+
+/* Quick nav card */
+.quick-card { min-height: 100px; }
+
+/* Stat card accent bar */
+.stat-card-bar {
+    width: 3px;
+    border-radius: 2px;
+    align-self: stretch;
+    flex-shrink: 0;
+}

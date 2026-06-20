@@ -1,0 +1,365 @@
+/* ============================================================
+   FLUENT VIBE — Windows 11 design system
+   ============================================================ */
+
+/* ---------- DESIGN TOKENS ---------- */
+.fluent {
+  --accent: #0f6cbd;
+  --accent-hover: #115ea3;
+  --accent-pressed: #4f9bd9;
+  --bg: #f3f3f3;
+  --surface: #ffffff;
+  --surface-2: #fbfbfb;
+  --border: rgba(0,0,0,0.0578);
+  --border-strong: rgba(0,0,0,0.0837);
+  --text: #1a1a1a;
+  --text-secondary: #5d5d5d;
+  --text-tertiary: #8a8a8a;
+  --hover: rgba(0,0,0,0.0373);
+  --pressed: rgba(0,0,0,0.0241);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.fluent.dark {
+  --bg: #202020;
+  --surface: #2b2b2b;
+  --surface-2: #2c2c2c;
+  --border: rgba(255,255,255,0.0837);
+  --border-strong: rgba(255,255,255,0.1);
+  --text: #ffffff;
+  --text-secondary: #cfcfcf;
+  --text-tertiary: #a0a0a0;
+  --hover: rgba(255,255,255,0.06);
+  --pressed: rgba(255,255,255,0.04);
+  --accent: #4cc2ff;
+  --accent-hover: #62cdff;
+  --accent-pressed: #429ce3;
+}
+
+/* ---------- MICA BACKGROUND ---------- */
+.fluent-mica {
+  background:
+    radial-gradient(ellipse 1200px 600px at 0% 0%, color-mix(in srgb, var(--accent) 4%, transparent), transparent 60%),
+    radial-gradient(ellipse 800px 400px at 100% 100%, color-mix(in srgb, var(--accent) 3%, transparent), transparent 60%),
+    var(--bg);
+}
+
+/* ---------- CARD ---------- */
+.fluent-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 120ms ease;
+}
+.fluent-card-hover:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+/* ---------- LIST ROW ---------- */
+.fluent-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.fluent-row:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.fluent-row-icon {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.fluent-row-content { flex: 1; min-width: 0; }
+.fluent-row-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.fluent-row-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ---------- BUTTONS ---------- */
+.fluent-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 120ms ease;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.fluent-btn:hover { background: var(--surface-2); }
+.fluent-btn:active { background: var(--pressed); }
+.fluent-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.fluent-btn-accent {
+  background: var(--accent);
+  color: white;
+  border-color: rgba(0,0,0,0.0837);
+  box-shadow: 0 1px 1px rgba(255,255,255,0.1) inset, 0 -1px 0 rgba(0,0,0,0.16) inset;
+}
+.fluent-btn-accent:hover { background: var(--accent-hover); color: white; }
+.fluent-btn-accent:active { background: var(--accent-pressed); }
+.fluent-btn-accent:disabled { background: rgba(0,0,0,0.06); color: var(--text-tertiary); box-shadow: none; }
+
+.fluent-btn-danger {
+  background: #c42b1c;
+  color: white;
+  border-color: rgba(0,0,0,0.0837);
+}
+.fluent-btn-danger:hover { background: #a12315; color: white; }
+
+/* ---------- TOGGLE ---------- */
+.fluent-toggle {
+  position: relative;
+  width: 40px; height: 20px;
+  background: transparent;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  flex-shrink: 0;
+}
+.fluent-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 4px;
+  transform: translateY(-50%);
+  width: 10px; height: 10px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fluent-toggle.on { background: var(--accent); border-color: var(--accent); }
+.fluent-toggle.on::after { left: 22px; width: 12px; height: 12px; background: white; }
+.fluent-toggle:hover:not(.on) { border-color: var(--text); }
+.fluent-toggle:hover:not(.on)::after { background: var(--text); }
+
+/* ---------- INPUT ---------- */
+.fluent-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: all 150ms ease;
+}
+.fluent-input:focus-within {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 5px;
+}
+.fluent-input input,
+.fluent-input select,
+.fluent-input textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  width: 100%;
+}
+.fluent-input input::placeholder,
+.fluent-input textarea::placeholder { color: var(--text-tertiary); }
+.fluent-input select { cursor: pointer; }
+
+/* ---------- NAV ITEM ---------- */
+.fluent-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px 8px 14px;
+  margin: 2px 6px;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 120ms ease;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  width: calc(100% - 12px);
+  text-align: left;
+  font-family: inherit;
+}
+.fluent-nav-item:hover { background: var(--hover); }
+.fluent-nav-item.active {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  font-weight: 600;
+}
+.fluent-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: height 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fluent-nav-item.active:hover::before { height: 22px; }
+
+/* ---------- AVATAR ---------- */
+.fluent-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 60%, white) 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 600; font-size: 18px;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 30%, transparent);
+  flex-shrink: 0;
+}
+
+/* ---------- TYPOGRAPHY ---------- */
+.fluent-h1 { font-size: 28px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.fluent-h2 { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.fluent-h3 { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.4; }
+.fluent-body { font-size: 14px; color: var(--text); line-height: 1.5; }
+.fluent-caption { font-size: 12px; color: var(--text-secondary); }
+.fluent-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+
+/* ---------- SCROLLBAR ---------- */
+.fluent-scroll::-webkit-scrollbar { width: 12px; }
+.fluent-scroll::-webkit-scrollbar-track { background: transparent; }
+.fluent-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.fluent-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.25);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+.fluent.dark .fluent-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); background-clip: padding-box; border: 3px solid transparent; }
+
+/* ---------- ANIMATIONS ---------- */
+@keyframes fluent-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fluent-fade-in { animation: fluent-fade-up 400ms cubic-bezier(0.4, 0, 0.2, 1) backwards; }
+.fluent-stagger > * { animation: fluent-fade-up 400ms cubic-bezier(0.4, 0, 0.2, 1) backwards; }
+.fluent-stagger > *:nth-child(1) { animation-delay: 40ms; }
+.fluent-stagger > *:nth-child(2) { animation-delay: 80ms; }
+.fluent-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.fluent-stagger > *:nth-child(4) { animation-delay: 160ms; }
+.fluent-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.fluent-stagger > *:nth-child(6) { animation-delay: 240ms; }
+.fluent-stagger > *:nth-child(7) { animation-delay: 280ms; }
+.fluent-stagger > *:nth-child(8) { animation-delay: 320ms; }
+.fluent-stagger > *:nth-child(9) { animation-delay: 360ms; }
+.fluent-stagger > *:nth-child(10) { animation-delay: 400ms; }
+
+/* ---------- BADGE ---------- */
+.fluent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.fluent-badge-success {
+  background: color-mix(in srgb, #0f7b0f 10%, transparent);
+  color: #0f7b0f;
+}
+.fluent-badge-danger {
+  background: color-mix(in srgb, #c42b1c 10%, transparent);
+  color: #c42b1c;
+}
+.fluent-badge-warning {
+  background: color-mix(in srgb, #9d5d00 10%, transparent);
+  color: #9d5d00;
+}
+
+/* ---------- DIVIDER ---------- */
+.fluent-divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: 16px 0;
+}
+
+/* ---------- TABLE ---------- */
+.fluent-table { width: 100%; border-collapse: collapse; }
+.fluent-table thead tr {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.fluent-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.fluent-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 120ms ease;
+}
+.fluent-table tbody tr:last-child { border-bottom: none; }
+.fluent-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.fluent-table tbody td {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* ---------- FLASH ALERT ---------- */
+.fluent-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.fluent-alert-success {
+  background: color-mix(in srgb, #0f7b0f 8%, transparent);
+  border: 1px solid color-mix(in srgb, #0f7b0f 25%, transparent);
+  color: #0a5e0a;
+}
+.fluent-alert-danger {
+  background: color-mix(in srgb, #c42b1c 8%, transparent);
+  border: 1px solid color-mix(in srgb, #c42b1c 25%, transparent);
+  color: #a12315;
+}

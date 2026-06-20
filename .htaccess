@@ -1,0 +1,15 @@
+# Enable rewriting
+RewriteEngine On
+
+# Force HTTPS and redirect non-www to www
+RewriteCond %{HTTP_HOST} ^tabib\.af$ [NC]
+RewriteRule ^(.*)$ https://www.tabib.af/$1 [L,R=301]
+
+# Optional: Ensure directory index
+DirectoryIndex index.php index.html
+
+# Security: Prevent access to .htaccess itself
+<Files .htaccess>
+    Order Allow,Deny
+    Deny from all
+</Files>
