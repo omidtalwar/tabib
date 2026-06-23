@@ -1,0 +1,20 @@
+{
+  "name": "tabib-pharmacy-functions",
+  "description": "Cloud Functions for the Tabib pharmacy portal — custom claims & staff provisioning",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "migrate:passwords": "node migrate-passwords.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1"
+  },
+  "devDependencies": {}
+}
