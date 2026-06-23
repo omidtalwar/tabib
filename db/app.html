@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tabib Pharmacy</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0EA59B" />
+  <link rel="icon" href="../assets/icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/tailwind.css" />
+</head>
+<body class="min-h-screen">
+  <!-- Boot/guard screen -->
+  <div id="boot" class="min-h-screen grid place-items-center">
+    <p class="text-sm font-semibold text-soft">Loading…</p>
+  </div>
+
+  <!-- Offline banner -->
+  <div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-50 bg-warn px-4 py-1.5 text-center text-sm font-semibold text-white">
+    You're offline. Changes are saved on this device and will sync when you reconnect.
+  </div>
+
+  <!-- App shell (revealed after guard passes) -->
+  <div id="shell" class="hidden md:grid md:grid-cols-[260px_1fr] min-h-screen">
+    <!-- Sidebar -->
+    <aside class="border-e border-line bg-white md:min-h-screen">
+      <div class="flex items-center gap-2 px-5 py-4">
+        <img src="../assets/icon.png" alt="" class="h-9 w-9 rounded-xl" />
+        <div>
+          <p class="text-sm font-bold leading-tight text-ink">Tabib Pharmacy</p>
+          <p id="pharmacyName" class="text-xs text-soft">—</p>
+        </div>
+      </div>
+      <nav id="nav" class="flex flex-col gap-1 px-3 pb-4"></nav>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex min-h-screen flex-col">
+      <header class="flex items-center justify-between gap-3 border-b border-line bg-white px-5 py-3">
+        <h1 id="pageTitle" class="text-lg font-bold text-ink">Dashboard</h1>
+        <div class="flex items-center gap-3">
+          <span id="syncDot" class="inline-flex items-center gap-1.5 text-xs font-semibold text-soft">
+            <span class="h-2 w-2 rounded-full bg-ok"></span><span id="syncText">Online</span>
+          </span>
+          <button id="rtlToggle" class="btn-ghost px-3 py-1.5 text-xs" title="Toggle direction">RTL</button>
+          <span id="userEmail" class="hidden sm:inline text-xs text-soft"></span>
+          <button id="logoutBtn" class="btn-ghost px-3 py-1.5 text-xs">Sign out</button>
+        </div>
+      </header>
+      <main id="outlet" class="flex-1 space-y-5 p-5"></main>
+    </div>
+  </div>
+
+  <script type="module">
+    import { isConfigured } from "./assets/js/firebase.js";
+    import { requirePharmacySession, logout, currentSession } from "./assets/js/session.js";
+    import { startRouter, navigate, PAGES } from "./assets/js/router.js";
+    import { pharmacyRef } from "./assets/js/repo.js";
+    import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const ICONS = {
+      dashboard: "▦", drugs: "💊", inventory: "📦", sales: "🧾",
+      prescriptions: "📝", patients: "👤", suppliers: "🚚", reports: "📊", settings: "⚙",
+    };
+    const LABELS = {
+      dashboard: "Dashboard", drugs: "Drugs", inventory: "Inventory", sales: "Sales (POS)",
+      prescriptions: "Prescriptions", patients: "Patients", suppliers: "Suppliers",
+      reports: "Reports", settings: "Settings",
+    };
+
+    function showUnlinked(email) {
+      document.getElementById("boot").innerHTML = `
+        <div class="card max-w-md text-center">
+          <p class="text-base font-semibold text-ink">Account not linked to a pharmacy</p>
+          <p class="mt-1 text-sm text-soft">${email ?? "This account"} isn't a member of any pharmacy yet.
+            Ask your pharmacy admin to add you, then sign in again.</p>
+          <button id="out" class="btn-ghost mt-4">Sign out</button>
+        </div>`;
+      document.getElementById("out").addEventListener("click", () => logout().then(() => location.replace("./index.html")));
+    }
+
+    (async function main() {
+      if (!isConfigured) {
+        document.getElementById("boot").innerHTML =
+          `<div class="card max-w-md text-center"><p class="font-semibold text-warn">Firebase isn't configured.</p>
+           <p class="mt-1 text-sm text-soft">Add your web config in <code>assets/js/firebase.js</code>, then reload.</p></div>`;
+        return;
+      }
+
+      const session = await requirePharmacySession();
+      if (session.unlinked) return showUnlinked(session.email);
+
+      // Build sidebar
+      const nav = document.getElementById("nav");
+      const links = {};
+      for (const page of PAGES) {
+        const a = document.createElement("a");
+        a.href = `#/p/${session.pharmacyId}/${page}`;
+        a.className = "sidebar-link";
+        a.innerHTML = `<span aria-hidden="true">${ICONS[page] || "•"}</span><span>${LABELS[page]}</span>`;
+        // settings → staff mgmt is admin-only, but the page itself is visible.
+        nav.append(a);
+        links[page] = a;
+      }
+
+      document.getElementById("userEmail").textContent = session.email || "";
+      document.getElementById("logoutBtn").addEventListener("click", () =>
+        logout().then(() => location.replace("./index.html")));
+
+      // RTL toggle (persisted)
+      const rtlSaved = localStorage.getItem("tabib_db_rtl") === "1";
+      if (rtlSaved) document.documentElement.dir = "rtl";
+      document.getElementById("rtlToggle").addEventListener("click", () => {
+        const rtl = document.documentElement.dir !== "rtl";
+        document.documentElement.dir = rtl ? "rtl" : "ltr";
+        localStorage.setItem("tabib_db_rtl", rtl ? "1" : "0");
+      });
+
+      // Reveal shell
+      document.getElementById("boot").classList.add("hidden");
+      document.getElementById("shell").classList.remove("hidden");
+
+      // Live pharmacy name (also proves rules: read allowed only for our pharmacy)
+      onSnapshot(pharmacyRef(session.pharmacyId), (snap) => {
+        const d = snap.data() || {};
+        document.getElementById("pharmacyName").textContent = d.name || d.pharmacyName || session.pharmacyId;
+      }, () => {});
+
+      // Online/offline indicator + banner
+      const banner = document.getElementById("offlineBanner");
+      const dot = document.querySelector("#syncDot span");
+      const txt = document.getElementById("syncText");
+      function setOnline(on) {
+        banner.classList.toggle("hidden", on);
+        dot.className = `h-2 w-2 rounded-full ${on ? "bg-ok" : "bg-warn"}`;
+        txt.textContent = on ? "Online" : "Offline";
+      }
+      setOnline(navigator.onLine);
+      addEventListener("online", () => setOnline(true));
+      addEventListener("offline", () => setOnline(false));
+
+      // Router
+      startRouter({
+        outlet: document.getElementById("outlet"),
+        session,
+        onNavigate: (page) => {
+          for (const [p, a] of Object.entries(links)) a.classList.toggle("active", p === page);
+          document.getElementById("pageTitle").textContent = LABELS[page] || "—";
+        },
+      });
+    })();
+  </script>
+</body>
+</html>

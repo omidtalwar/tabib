@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// Tabib Pharmacy — INTERIM rules (decision D3 = interim owner-write).
+//
+// Access to a pharmacy is granted to its MEMBERS, where a member is either:
+//   - a user whose custom claim pharmacyId == {pharmacyId}  (portal staff/admin), or
+//   - the pharmacy OWNER (pharmacies/{id}.ownerUid == request.auth.uid), which
+//     covers the app owner BEFORE their claim is bootstrapped.
+//
+// This keeps the live Flutter app working (it creates pharmacies + writes data
+// client-side as the owner) while still scoping every pharmacy's data to its
+// members. Plaintext `password` is forbidden everywhere — the app must be
+// updated to stop writing it BEFORE these rules are deployed.
+//
+// Tighten later (D3 path A) by moving creation server-side and dropping the
+// owner fallback + the no-password guards once the app no longer needs them.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn()     { return request.auth != null; }
+    function claimPharmacy() { return request.auth.token.pharmacyId; }
+    function isOwner(pid) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/pharmacies/$(pid))
+        && get(/databases/$(database)/documents/pharmacies/$(pid)).data.ownerUid == request.auth.uid;
+    }
+    function isMember(pid) { return signedIn() && (claimPharmacy() == pid || isOwner(pid)); }
+    function noPassword()  { return !('password' in request.resource.data); }
+
+    match /pharmacies/{pharmacyId} {
+      allow read:   if isMember(pharmacyId);
+      // Owner may create their own pharmacy doc (no plaintext password).
+      allow create: if signedIn()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && noPassword();
+      // Members may update non-ownership fields; ownerUid is immutable; no password.
+      allow update: if isMember(pharmacyId)
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && noPassword();
+      allow delete: if false;
+
+      // Sub-collections (drugs, sales, patients, prescriptions, suppliers, ...).
+      match /{sub=**} {
+        allow read, write: if isMember(pharmacyId);
+      }
+    }
+
+    // Per-user settings keyed by uid (app writes its own; no plaintext password).
+    match /pharmacy_settings/{uid} {
+      allow read:  if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid && noPassword();
+    }
+
+    // user_practices link doc — a user may read/write only their own link.
+    match /user_practices/{uid} {
+      allow read:  if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Deny everything else (incl. legacy top-level pharmacy_* paths — D4 pending).
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "tabib-pharmacy-portal-build",
+  "private": true,
+  "description": "Tailwind build pipeline for the Tabib pharmacy portal (db/).",
+  "scripts": {
+    "build:css": "tailwindcss -c ./tailwind.config.js -i ./input.css -o ../db/assets/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -c ./tailwind.config.js -i ./input.css -o ../db/assets/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

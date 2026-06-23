@@ -1,0 +1,32 @@
+# Tabib Pharmacy portal — static SPA-ish routing under /db/.
+# Routing is client-side via hash (#/p/{id}/...), so we only need:
+#  - a clean default document,
+#  - never expose the .htaccess itself,
+#  - let real files (js/css/png) serve directly.
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /db/
+
+  # Serve existing files/dirs as-is.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Anything else under /db/ falls back to the login document.
+  # (Authenticated views live in app.html and are reached after sign-in.)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<Files ".htaccess">
+  Require all denied
+</Files>
+
+# Don't let the SDK config be cached forever during setup.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "max-age=3600, must-revalidate"
+  </FilesMatch>
+</IfModule>

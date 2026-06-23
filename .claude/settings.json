@@ -4,7 +4,20 @@
       "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -r \"echo password_hash\\('admin123', PASSWORD_DEFAULT\\);\")",
       "Bash('c:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root mmi_collection -e ' *)",
       "PowerShell(Get-ChildItem \"c:\\\\xampp\\\\htdocs\\\\mmicollection\\\\database\\\\\"; if \\(-not \\(Test-Path \"c:\\\\xampp\\\\htdocs\\\\mmicollection\\\\admin\\\\drive\"\\)\\) { New-Item -ItemType Directory -Path \"c:\\\\xampp\\\\htdocs\\\\mmicollection\\\\admin\\\\drive\" | Out-Null; \"drive dir created\" } else { \"drive dir exists\" })",
-      "WebFetch(domain:fzlstocks.shop)"
+      "WebFetch(domain:fzlstocks.shop)",
+      "Bash(npm -v)",
+      "Bash(echo \"npm: $\\(npm -v 2>/dev/null || echo MISSING\\)\")",
+      "Bash(npx -v)",
+      "Bash(echo \"npx: $\\(npx -v 2>/dev/null || echo MISSING\\)\")",
+      "Bash(firebase --version)",
+      "Bash(npm install *)",
+      "Bash(firebase login:list)",
+      "Bash(firebase apps:sdkconfig WEB --project tabib-01)",
+      "Bash(firebase apps:create WEB \"Tabib Pharmacy Portal\" --project tabib-01)",
+      "Bash(firebase apps:sdkconfig WEB 1:1026232203696:web:59b2905bc6a43e6b94be75 --project tabib-01)",
+      "Bash(node --check firebase/functions/index.js)",
+      "Bash(node --check firebase/functions/migrate-passwords.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -L --max-time 20 \"https://www.tabib.af/\")"
     ]
   }
 }

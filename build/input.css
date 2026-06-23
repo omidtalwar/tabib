@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Fonts (self-host or swap for local files before production) ---- */
+/* Kept as a single import; only Latin + Arabic subsets are needed. */
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-[#F2F5F5] text-ink font-sans antialiased; }
+  [dir="rtl"] body { @apply font-rtl; }
+
+  /* Visible keyboard focus — required for fast, accessible data entry. */
+  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+}
+
+@layer components {
+  /* Large tap targets; this is used fast on cheap tablets. */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700; }
+  .btn-ghost { @apply btn border border-line bg-white text-ink hover:border-brand-400 hover:text-brand-700; }
+  .btn-danger { @apply btn bg-danger text-white hover:brightness-95; }
+
+  .field { @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-soft focus:border-brand-400; }
+  .label { @apply mb-1.5 block text-sm font-semibold text-ink; }
+
+  .card { @apply rounded-2xl border border-line bg-white p-5; }
+  .kpi { @apply card flex flex-col gap-1; }
+  .kpi-value { @apply text-2xl font-bold text-ink; }
+  .kpi-label { @apply text-sm font-medium text-soft; }
+
+  /* Status badges — deliberately bold; they encode real safety state. */
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold; }
+  .badge-danger { @apply badge bg-danger/10 text-danger; }
+  .badge-warn { @apply badge bg-warn/10 text-warn; }
+  .badge-ok { @apply badge bg-ok/10 text-ok; }
+  .badge-muted { @apply badge bg-line text-soft; }
+
+  .table { @apply w-full text-sm; }
+  .table th { @apply px-3 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-soft; }
+  .table td { @apply border-t border-line px-3 py-3 text-ink; }
+
+  .sidebar-link { @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-soft hover:bg-brand-50 hover:text-brand-700; }
+  .sidebar-link.active { @apply bg-brand-50 text-brand-700; }
+}

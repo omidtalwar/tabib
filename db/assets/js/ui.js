@@ -1,0 +1,128 @@
+/**
+ * ui.js — small DOM helpers: toasts, modal/confirm, formatters, badge helpers.
+ * No framework. Plain, active-voice copy; empty states tell the user what to do.
+ */
+
+/* ---------------- escaping ---------------- */
+export function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+/* ---------------- el helper ---------------- */
+export function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "html") node.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (v != null) node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    node.append(c.nodeType ? c : document.createTextNode(c));
+  }
+  return node;
+}
+
+/* ---------------- toast ---------------- */
+let _toastHost;
+export function toast(message, { type = "info", timeout = 3500 } = {}) {
+  if (!_toastHost) {
+    _toastHost = el("div", { class: "fixed bottom-4 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none" });
+    document.body.append(_toastHost);
+  }
+  const colors = { info: "bg-ink", ok: "bg-ok", warn: "bg-warn", error: "bg-danger" };
+  const t = el("div", {
+    class: `pointer-events-auto rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg ${colors[type] || colors.info}`,
+    role: "status",
+  }, message);
+  _toastHost.append(t);
+  setTimeout(() => t.remove(), timeout);
+}
+
+/* ---------------- modal ---------------- */
+/** Open a modal. `render(close)` returns a DOM node. Returns a close() fn. */
+export function modal(render, { onClose } = {}) {
+  const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); onClose && onClose(); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const panel = el("div", { class: "card w-full max-w-lg max-h-[90vh] overflow-auto", role: "dialog", "aria-modal": "true" });
+  panel.append(render(close));
+  const overlay = el("div", {
+    class: "fixed inset-0 z-40 flex items-center justify-center bg-ink/40 p-4",
+    onclick: (e) => { if (e.target === overlay) close(); },
+  }, panel);
+  document.body.append(overlay);
+  document.addEventListener("keydown", onKey);
+  return close;
+}
+
+/** Confirm dialog → Promise<boolean>. */
+export function confirmDialog(message, { confirmLabel = "Confirm", danger = false } = {}) {
+  return new Promise((resolve) => {
+    modal(
+      (close) => el("div", {}, [
+        el("p", { class: "text-ink" }, message),
+        el("div", { class: "mt-5 flex justify-end gap-2" }, [
+          el("button", { class: "btn-ghost", onclick: () => { close(); resolve(false); } }, "Cancel"),
+          el("button", { class: danger ? "btn-danger" : "btn-primary", onclick: () => { close(); resolve(true); } }, confirmLabel),
+        ]),
+      ]),
+      { onClose: () => resolve(false) }
+    );
+  });
+}
+
+/* ---------------- formatters ---------------- */
+export function money(n, currency = "AFN", locale = "en-US") {
+  const v = Number(n) || 0;
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 2 }).format(v);
+  } catch {
+    return `${v.toFixed(2)} ${currency}`;
+  }
+}
+
+export function fmtDate(date, locale = "en-US") {
+  if (!date) return "—";
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }).format(d);
+}
+
+export function daysUntil(date) {
+  if (!date) return null;
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+/* ---------------- stock / expiry status (safety-critical) ---------------- */
+/** Returns { key, label } for a drug's stock state. Field names per REFERENCE. */
+export function stockStatus({ stockQuantity = 0, reorderThreshold = 0 } = {}) {
+  if (stockQuantity <= 0) return { key: "out", label: "Out of stock" };
+  if (stockQuantity <= reorderThreshold) return { key: "low", label: "Low stock" };
+  return { key: "ok", label: "In stock" };
+}
+
+export function expiryStatus(expiryDate) {
+  const d = daysUntil(expiryDate);
+  if (d == null) return { key: "none", label: "" };
+  if (d < 0) return { key: "expired", label: "Expired" };
+  if (d <= 30) return { key: "expiring", label: `Expires in ${d}d` };
+  return { key: "ok", label: "" };
+}
+
+export function badge(text, kind = "muted") {
+  const cls = { danger: "badge-danger", warn: "badge-warn", ok: "badge-ok", muted: "badge-muted" }[kind] || "badge-muted";
+  return `<span class="${cls}">${esc(text)}</span>`;
+}
+
+/* ---------------- empty / error states ---------------- */
+export function emptyState(title, hint) {
+  return el("div", { class: "card text-center py-12" }, [
+    el("p", { class: "text-base font-semibold text-ink" }, title),
+    hint ? el("p", { class: "mt-1 text-sm text-soft" }, hint) : null,
+  ]);
+}

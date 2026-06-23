@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Tabib Pharmacy</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0EA59B" />
+  <link rel="icon" href="../assets/icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/tailwind.css" />
+</head>
+<body class="min-h-screen grid place-items-center p-4">
+  <main class="w-full max-w-sm">
+    <div class="mb-6 flex flex-col items-center text-center">
+      <img src="../assets/icon.png" alt="" class="h-14 w-14 rounded-2xl shadow" />
+      <h1 class="mt-3 text-xl font-bold text-ink">Tabib Pharmacy</h1>
+      <p class="text-sm text-soft">Sign in to manage your pharmacy.</p>
+    </div>
+
+    <form id="loginForm" class="card flex flex-col gap-4" novalidate>
+      <div id="config-warning" class="hidden rounded-xl bg-warn/10 px-3 py-2 text-sm font-semibold text-warn">
+        Firebase config not set yet. Add your web config in <code>assets/js/firebase.js</code>.
+      </div>
+
+      <div>
+        <label class="label" for="email">Email</label>
+        <input class="field" id="email" type="email" autocomplete="username" required />
+      </div>
+
+      <div>
+        <label class="label" for="password">Password</label>
+        <input class="field" id="password" type="password" autocomplete="current-password" required />
+      </div>
+
+      <label class="flex items-center gap-2 text-sm text-ink">
+        <input id="remember" type="checkbox" checked class="h-4 w-4 rounded border-line text-brand-500" />
+        Remember me on this device
+      </label>
+
+      <p id="error" class="hidden text-sm font-semibold text-danger" role="alert"></p>
+
+      <button id="submitBtn" type="submit" class="btn-primary w-full">Sign in</button>
+
+      <button id="resetBtn" type="button" class="text-sm font-semibold text-brand-700 hover:text-brand-800">
+        Forgot your password?
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-xs text-soft">
+      Pharmacy staff only. Access is granted by your pharmacy admin.
+    </p>
+  </main>
+
+  <script type="module">
+    import { isConfigured } from "./assets/js/firebase.js";
+    import { login, resetPassword, onSession } from "./assets/js/session.js";
+    import { toast } from "./assets/js/ui.js";
+
+    const form = document.getElementById("loginForm");
+    const errorEl = document.getElementById("error");
+    const btn = document.getElementById("submitBtn");
+
+    if (!isConfigured) document.getElementById("config-warning").classList.remove("hidden");
+
+    // Already signed in with a linked pharmacy → go to the app.
+    onSession((s) => { if (s && s.pharmacyId) location.replace("./app.html"); });
+
+    function showError(msg) { errorEl.textContent = msg; errorEl.classList.remove("hidden"); }
+    function clearError() { errorEl.classList.add("hidden"); }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearError();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const remember = document.getElementById("remember").checked;
+      if (!email || !password) return showError("Enter your email and password.");
+
+      btn.disabled = true; btn.textContent = "Signing in…";
+      try {
+        await login(email, password, remember);
+        // onSession handles the redirect once claims load.
+      } catch (err) {
+        const map = {
+          "auth/invalid-credential": "Wrong email or password.",
+          "auth/invalid-email": "That email address isn't valid.",
+          "auth/user-disabled": "This account is disabled. Contact your admin.",
+          "auth/too-many-requests": "Too many attempts. Wait a moment and try again.",
+          "auth/network-request-failed": "No connection. Check your network and try again.",
+        };
+        showError(map[err.code] || "Couldn't sign you in. Try again.");
+        btn.disabled = false; btn.textContent = "Sign in";
+      }
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      if (!email) return showError("Enter your email first, then tap reset.");
+      try {
+        await resetPassword(email);
+        toast("Password reset email sent. Check your inbox.", { type: "ok" });
+      } catch {
+        showError("Couldn't send the reset email. Check the address.");
+      }
+    });
+  </script>
+</body>
+</html>

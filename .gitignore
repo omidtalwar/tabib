@@ -1,0 +1,9 @@
+# Node / build artifacts for the pharmacy portal
+build/node_modules/
+firebase/functions/node_modules/
+npm-debug.log*
+**/.firebase/
+
+# Never commit service-account keys
+serviceAccount*.json
+*.serviceaccount.json
