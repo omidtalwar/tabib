@@ -17,7 +17,14 @@
       "Bash(firebase apps:sdkconfig WEB 1:1026232203696:web:59b2905bc6a43e6b94be75 --project tabib-01)",
       "Bash(node --check firebase/functions/index.js)",
       "Bash(node --check firebase/functions/migrate-passwords.js)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -L --max-time 20 \"https://www.tabib.af/\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -L --max-time 20 \"https://www.tabib.af/\")",
+      "Bash(node --check db/assets/js/session.js)",
+      "Bash(git -C c:/xampp/htdocs/tabib restore --staged .claude/settings.json)",
+      "Bash(git -C c:/xampp/htdocs/tabib diff --cached --name-only)",
+      "Bash(git -C c:/xampp/htdocs/tabib commit -m ' *)",
+      "Bash(git -C \"c:/xampp/htdocs/tabib\" push origin main)",
+      "Bash(git -C c:/xampp/htdocs/tabib show HEAD:db/assets/js/session.js)",
+      "Bash(git -C c:/xampp/htdocs/tabib add db/.htaccess)"
     ]
   }
 }
