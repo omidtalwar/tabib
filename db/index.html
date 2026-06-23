@@ -81,8 +81,10 @@
 
     if (!isConfigured) document.getElementById("config-warning").classList.remove("hidden");
 
-    // Already signed in with a linked pharmacy → go to the app.
-    onSession((s) => { if (s && s.pharmacyId) location.replace("./app.html"); });
+    // Signed in → go to the app. app.html handles the "account not linked"
+    // case (signed in but no pharmacyId claim) with a clear message, so we
+    // redirect on any authenticated session, not only linked ones.
+    onSession((s) => { if (s) location.replace("./app.html"); });
 
     // Finalize a returning Google redirect sign-in and surface any error.
     completeGoogleRedirect().catch((err) => {
