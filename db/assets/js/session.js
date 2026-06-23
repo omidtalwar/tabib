@@ -117,35 +117,25 @@ onAuthStateChanged(auth, async (user) => {
  *   - not signed in            -> redirect to login
  *   - signed in, no pharmacyId -> reject ("account not linked to a pharmacy")
  */
-export function requirePharmacySession({ loginUrl = "./index.html" } = {}) {
-  return new Promise((resolve) => {
-    // `unsub` is intentionally declared (and null) before onSession runs:
-    // onSession invokes the handler synchronously, so the handler must not
-    // touch a not-yet-assigned const. We clean up after onSession returns.
-    let unsub = null;
-    let settled = false;
+export async function requirePharmacySession({ loginUrl = "./index.html" } = {}) {
+  // Wait for Firebase to finish restoring any persisted session. Without this,
+  // auth.currentUser is transiently null at page load and we'd bounce to login
+  // → login bounces back → redirect loop.
+  await auth.authStateReady();
 
-    const handle = (s) => {
-      if (settled) return;
-      // Wait for the first definitive auth resolution.
-      if (s === null && auth.currentUser === null) {
-        settled = true;
-        if (unsub) unsub();
-        window.location.replace(loginUrl);
-      } else if (s && s.pharmacyId) {
-        settled = true;
-        if (unsub) unsub();
-        resolve(s);
-      } else if (s && !s.pharmacyId) {
-        settled = true;
-        if (unsub) unsub();
-        resolve({ ...s, unlinked: true });
-      }
-    };
+  const user = auth.currentUser;
+  if (!user) {
+    window.location.replace(loginUrl);
+    return new Promise(() => {}); // never resolves; page is navigating away
+  }
 
-    unsub = onSession(handle);
-    // If it resolved during the synchronous first call (before `unsub` existed),
-    // remove the listener now.
-    if (settled && unsub) unsub();
-  });
+  const res = await user.getIdTokenResult();
+  const s = {
+    uid: user.uid,
+    email: user.email,
+    pharmacyId: res.claims.pharmacyId ?? null,
+    role: res.claims.role ?? null,
+  };
+  _session = s;
+  return s.pharmacyId ? s : { ...s, unlinked: true };
 }
