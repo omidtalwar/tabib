@@ -31,4 +31,9 @@ DirectoryIndex index.html
   <FilesMatch "\.(js|css|html)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
+
+  # Allow Firebase Google sign-in popups to keep their opener relationship.
+  # Without this, a restrictive Cross-Origin-Opener-Policy blocks the SDK's
+  # window.closed poll and the popup sign-in stalls.
+  Header set Cross-Origin-Opener-Policy "same-origin-allow-popups"
 </IfModule>
