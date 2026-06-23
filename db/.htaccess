@@ -24,9 +24,11 @@ DirectoryIndex index.html
   Require all denied
 </Files>
 
-# Don't let the SDK config be cached forever during setup.
+# During active development, always revalidate JS/CSS/HTML so updated ES modules
+# can't go stale and break imports (e.g. a cached session.js missing a new
+# export). Tighten to a longer max-age once the portal stabilizes for production.
 <IfModule mod_headers.c>
-  <FilesMatch "\.(js|css)$">
-    Header set Cache-Control "max-age=3600, must-revalidate"
+  <FilesMatch "\.(js|css|html)$">
+    Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>
