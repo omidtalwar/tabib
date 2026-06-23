@@ -14,6 +14,8 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 /** @typedef {{ uid:string, email:string|null, pharmacyId:string|null, role:string|null }} Session */
@@ -44,6 +46,18 @@ export async function login(email, password, remember = true) {
   );
   await signInWithEmailAndPassword(auth, email, password);
   // onAuthStateChanged will refresh _session with claims.
+}
+
+/** Sign in with Google (popup). Same account the app uses via Google sign-in. */
+export async function loginWithGoogle(remember = true) {
+  await setPersistence(
+    auth,
+    remember ? browserLocalPersistence : browserSessionPersistence
+  );
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  await signInWithPopup(auth, provider);
+  // onAuthStateChanged refreshes _session with claims.
 }
 
 export async function logout() {

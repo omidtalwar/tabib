@@ -3,3 +3,7 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/ictswwsc/tabib.af/
     - /bin/cp -R * $DEPLOYPATH
+    # Keep dev-only / server-side folders out of the public web root.
+    # (They stay in git for version control, just not served publicly.)
+    - /bin/rm -rf $DEPLOYPATH/build $DEPLOYPATH/firebase $DEPLOYPATH/docs
+    - /bin/rm -f $DEPLOYPATH/PHARMACY-PORTAL.md
