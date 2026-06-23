@@ -15,7 +15,8 @@ import {
   browserSessionPersistence,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 /** @typedef {{ uid:string, email:string|null, pharmacyId:string|null, role:string|null }} Session */
@@ -48,7 +49,12 @@ export async function login(email, password, remember = true) {
   // onAuthStateChanged will refresh _session with claims.
 }
 
-/** Sign in with Google (popup). Same account the app uses via Google sign-in. */
+/**
+ * Sign in with Google via full-page REDIRECT (not popup). Redirect avoids the
+ * Cross-Origin-Opener-Policy / window.closed problems that block popups on
+ * shared hosting. The page navigates to Google and back; on return,
+ * completeGoogleRedirect() finalizes and onAuthStateChanged sets the session.
+ */
 export async function loginWithGoogle(remember = true) {
   await setPersistence(
     auth,
@@ -56,8 +62,15 @@ export async function loginWithGoogle(remember = true) {
   );
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  await signInWithPopup(auth, provider);
-  // onAuthStateChanged refreshes _session with claims.
+  await signInWithRedirect(auth, provider); // navigates away
+}
+
+/**
+ * Call once on the login page load to complete a returning Google redirect and
+ * surface any error. Resolves null when there's no pending redirect.
+ */
+export function completeGoogleRedirect() {
+  return getRedirectResult(auth);
 }
 
 export async function logout() {

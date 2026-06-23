@@ -24,7 +24,10 @@
       "Bash(git -C c:/xampp/htdocs/tabib commit -m ' *)",
       "Bash(git -C \"c:/xampp/htdocs/tabib\" push origin main)",
       "Bash(git -C c:/xampp/htdocs/tabib show HEAD:db/assets/js/session.js)",
-      "Bash(git -C c:/xampp/htdocs/tabib add db/.htaccess)"
+      "Bash(git -C c:/xampp/htdocs/tabib add db/.htaccess)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -L --max-time 20 \"https://www.tabib.af/db/\")",
+      "Bash(curl -s -L --max-time 20 \"https://www.tabib.af/db/assets/js/session.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 8 \"http://localhost/tabib/db/assets/js/session.js\")"
     ]
   }
 }
