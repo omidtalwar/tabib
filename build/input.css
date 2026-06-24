@@ -45,6 +45,15 @@
   .switcher { @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 hover:border-brand-400; }
   .switcher > svg { @apply h-[18px] w-[18px] flex-none text-brand-600; }
   .switch-select { @apply max-w-[170px] cursor-pointer appearance-none border-0 bg-transparent p-0 pe-1 text-sm font-semibold text-ink focus:outline-none focus:ring-0; }
+
+  /* Header user menu (Settings-style dropdown). */
+  .user-trigger { @apply flex items-center gap-2 rounded-full border border-line bg-white py-1 pe-2 ps-1 transition hover:border-brand-400; }
+  .menu { @apply absolute end-0 z-50 mt-2 w-60 rounded-xl border border-line bg-white p-1.5 shadow-xl; }
+  .menu-head { @apply flex items-center gap-3 px-2 py-2; }
+  .menu-item { @apply flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-ink transition hover:bg-black/[0.04]; }
+  .menu-item.danger { @apply text-danger hover:bg-danger/5; }
+  .menu-item > svg { @apply h-[18px] w-[18px] flex-none; }
+  .menu-sep { @apply my-1 border-t border-line; }
   .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700; }
   .btn-ghost { @apply btn border border-line bg-white text-ink hover:border-brand-400 hover:text-brand-700; }
   .btn-danger { @apply btn bg-danger text-white hover:brightness-95; }

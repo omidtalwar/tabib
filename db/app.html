@@ -48,14 +48,32 @@
           <span id="syncDot" class="hidden items-center gap-1.5 text-xs font-semibold text-soft sm:inline-flex">
             <span class="h-2 w-2 rounded-full bg-ok"></span><span id="syncText">Online</span>
           </span>
-          <div class="hidden items-center gap-2 rounded-full border border-line bg-white py-1 pe-3 ps-1 sm:flex">
-            <span id="headerAvatar" class="grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold text-white" style="background-image:linear-gradient(135deg,#26b3a6,#0A7F77)">P</span>
-            <span id="userEmail" class="max-w-[200px] truncate text-xs font-medium text-ink"></span>
+          <div class="relative">
+            <button id="userBtn" class="user-trigger" aria-haspopup="true" aria-expanded="false">
+              <span id="headerAvatar" class="grid h-7 w-7 flex-none place-items-center rounded-full text-[11px] font-bold text-white" style="background-image:linear-gradient(135deg,#26b3a6,#0A7F77)">P</span>
+              <span id="userEmail" class="hidden max-w-[150px] truncate text-xs font-medium text-ink sm:inline"></span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-soft" style="width:14px;height:14px"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="userMenu" class="menu hidden">
+              <div class="menu-head">
+                <span id="menuAvatar" class="grid h-9 w-9 flex-none place-items-center rounded-full text-sm font-bold text-white" style="background-image:linear-gradient(135deg,#26b3a6,#0A7F77)">P</span>
+                <div class="min-w-0">
+                  <p id="menuName" class="truncate text-sm font-semibold text-ink">—</p>
+                  <p id="menuEmail" class="truncate text-xs text-soft">—</p>
+                </div>
+              </div>
+              <div class="menu-sep"></div>
+              <button id="rtlToggle" class="menu-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h11M4 12h8M4 19h11"/><path d="m17 8 4 4-4 4"/></svg>
+                <span class="flex-1 text-start">Right-to-left</span>
+                <span id="rtlState" class="text-xs font-semibold text-soft">Off</span>
+              </button>
+              <button id="logoutBtn" class="menu-item danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+                <span>Sign out</span>
+              </button>
+            </div>
           </div>
-          <button id="rtlToggle" class="btn-ghost px-3 py-1.5 text-xs" title="Toggle direction">RTL</button>
-          <button id="logoutBtn" class="icon-btn c-red" title="Sign out" aria-label="Sign out">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
-          </button>
         </div>
       </header>
       <main id="outlet" class="flex-1 space-y-5 p-5"></main>
@@ -133,8 +151,10 @@
           elm.textContent = initial;
         }
       };
-      setAvatar("avatar");
-      setAvatar("headerAvatar");
+      ["avatar", "headerAvatar", "menuAvatar"].forEach(setAvatar);
+      const displayName = session.displayName || (email.split("@")[0] || "User").replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      document.getElementById("menuName").textContent = displayName;
+      document.getElementById("menuEmail").textContent = email;
       document.getElementById("sideRole").textContent = session.role === "admin" ? "Admin" : "Pharmacy";
 
       // Build sidebar nav (colored icon tiles).
@@ -185,13 +205,29 @@
       document.getElementById("logoutBtn").addEventListener("click", () =>
         logout().then(() => location.replace("./index.html")));
 
-      // RTL toggle (persisted)
+      // Header user menu (open/close).
+      const userBtn = document.getElementById("userBtn");
+      const userMenu = document.getElementById("userMenu");
+      userBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const hidden = userMenu.classList.toggle("hidden");
+        userBtn.setAttribute("aria-expanded", hidden ? "false" : "true");
+      });
+      document.addEventListener("click", (e) => {
+        if (!userMenu.contains(e.target) && !userBtn.contains(e.target)) userMenu.classList.add("hidden");
+      });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") userMenu.classList.add("hidden"); });
+
+      // RTL toggle (persisted), shown as a menu item.
       const rtlSaved = localStorage.getItem("tabib_db_rtl") === "1";
       if (rtlSaved) document.documentElement.dir = "rtl";
-      document.getElementById("rtlToggle").addEventListener("click", () => {
+      document.getElementById("rtlState").textContent = rtlSaved ? "On" : "Off";
+      document.getElementById("rtlToggle").addEventListener("click", (e) => {
+        e.stopPropagation();
         const rtl = document.documentElement.dir !== "rtl";
         document.documentElement.dir = rtl ? "rtl" : "ltr";
         localStorage.setItem("tabib_db_rtl", rtl ? "1" : "0");
+        document.getElementById("rtlState").textContent = rtl ? "On" : "Off";
       });
 
       // Reveal shell
