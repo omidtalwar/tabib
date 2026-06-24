@@ -1,6 +1,6 @@
 /** Sales — history + POS (atomic, offline-capable sale via commitSale). */
 import { watch, commitSale, commitReturn, uuid, toDate } from "../repo.js";
-import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog, formModal, printContent, iconButton, esc } from "../ui.js";
+import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog, formModal, printContent, iconButton, esc, withButtonLoading } from "../ui.js";
 import { t } from "../i18n.js";
 
 const PAYMENTS = ["cash", "card", "insurance", "credit"];
@@ -144,7 +144,7 @@ export default function render(outlet, ctx) {
           row(t("sales.discount"), "− " + money(tt.discountAmount)),
           row(t("sales.insuranceRow"), "− " + money(Number(insuranceCoverage) || 0)),
           el("div", { class: "flex justify-between border-t border-brand-200 pt-2 text-base font-bold text-ink" }, [el("span", {}, t("sales.total")), el("span", {}, money(tt.total))]),
-          el("button", { class: "btn-primary w-full mt-2", onclick: confirmSale }, t("sales.confirm")),
+          el("button", { class: "btn-primary w-full mt-2", onclick: (e) => withButtonLoading(e.currentTarget, confirmSale) }, t("sales.confirm")),
         ]),
       ]));
     }

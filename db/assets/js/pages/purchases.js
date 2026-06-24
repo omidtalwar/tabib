@@ -1,7 +1,7 @@
 /** Purchases — record stock bought from suppliers. Adds stock + tracks payables.
  * commitPurchase increments each drug's stock and refreshes cost price atomically. */
 import { watch, readAll, commitPurchase, uuid, toDate } from "../repo.js";
-import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, filterSelect } from "../ui.js";
+import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, filterSelect, withButtonLoading } from "../ui.js";
 import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
@@ -86,7 +86,7 @@ export default function render(outlet, ctx) {
           row(t("pur.amountPaid"), money(num(amountPaid))),
           el("div", { class: "flex justify-between border-t border-brand-200 pt-2 text-base font-bold text-ink" }, [el("span", {}, t("pur.total")), el("span", {}, money(tot))]),
           el("p", { class: "text-xs text-soft" }, t("pur.payNote")),
-          el("button", { class: "btn-primary w-full mt-1", onclick: confirmPurchase }, t("pur.confirm")),
+          el("button", { class: "btn-primary w-full mt-1", onclick: (e) => withButtonLoading(e.currentTarget, confirmPurchase) }, t("pur.confirm")),
         ]),
       ]));
     }

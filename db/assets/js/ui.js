@@ -48,12 +48,24 @@ export function toast(message, { type = "info", timeout = 3500 } = {}) {
 /* ---------------- modal ---------------- */
 /** Open a modal. `render(close)` returns a DOM node. Returns a close() fn. */
 export function modal(render, { onClose } = {}) {
-  const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); onClose && onClose(); };
+  let closed = false;
+  const close = () => {
+    if (closed) return; closed = true;
+    document.removeEventListener("keydown", onKey);
+    overlay.style.opacity = "0";
+    panel.style.transform = "translateY(8px) scale(.97)";
+    panel.style.opacity = "0";
+    setTimeout(() => overlay.remove(), 140);
+    onClose && onClose();
+  };
   const onKey = (e) => { if (e.key === "Escape") close(); };
-  const panel = el("div", { class: "card w-full max-w-lg max-h-[90vh] overflow-auto", role: "dialog", "aria-modal": "true" });
+  const panel = el("div", {
+    class: "anim-pop relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 transition-all duration-150",
+    role: "dialog", "aria-modal": "true",
+  });
   panel.append(render(close));
   const overlay = el("div", {
-    class: "fixed inset-0 z-40 flex items-center justify-center bg-ink/40 p-4",
+    class: "anim-fade fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 backdrop-blur-sm transition-opacity duration-150 sm:items-center sm:p-4",
     onclick: (e) => { if (e.target === overlay) close(); },
   }, panel);
   document.body.append(overlay);
@@ -65,9 +77,9 @@ export function modal(render, { onClose } = {}) {
 export function confirmDialog(message, { confirmLabel = t("common.confirm"), danger = false } = {}) {
   return new Promise((resolve) => {
     modal(
-      (close) => el("div", {}, [
-        el("p", { class: "text-ink" }, message),
-        el("div", { class: "mt-5 flex justify-end gap-2" }, [
+      (close) => el("div", { class: "p-6" }, [
+        el("p", { class: "text-[15px] leading-relaxed text-ink" }, message),
+        el("div", { class: "mt-6 flex justify-end gap-2" }, [
           el("button", { class: "btn-ghost", onclick: () => { close(); resolve(false); } }, t("common.cancel")),
           el("button", { class: danger ? "btn-danger" : "btn-primary", onclick: () => { close(); resolve(true); } }, confirmLabel),
         ]),
@@ -317,13 +329,21 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
     }));
 
     const close = modal((closeFn) => {
-      const panel = el("div", {}, [
-        el("h3", { class: "text-lg font-bold text-ink" }, title),
-        el("div", { class: "mt-4" }, body),
-        err,
-        el("div", { class: "mt-5 flex justify-end gap-2" }, [
+      const submitBtn = el("button", { type: "button", class: "btn-primary min-w-[96px]", onclick: submit }, submitLabel);
+      const closeX = el("button", {
+        type: "button", "aria-label": t("common.cancel"),
+        class: "rounded-lg p-1.5 text-soft transition hover:bg-black/5 hover:text-ink",
+        onclick: () => { closeFn(); resolve(false); },
+      });
+      closeX.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+      const panel = el("div", { class: "flex max-h-[92vh] flex-col" }, [
+        el("div", { class: "flex items-center justify-between gap-3 border-b border-line px-5 py-3.5" }, [
+          el("h3", { class: "text-base font-bold text-ink" }, title), closeX,
+        ]),
+        el("div", { class: "flex-1 overflow-auto px-5 py-4" }, [body, err]),
+        el("div", { class: "flex justify-end gap-2 border-t border-line bg-black/[0.015] px-5 py-3" }, [
           el("button", { type: "button", class: "btn-ghost", onclick: () => { closeFn(); resolve(false); } }, t("common.cancel")),
-          el("button", { type: "button", class: "btn-primary", onclick: submit }, submitLabel),
+          submitBtn,
         ]),
       ]);
       async function submit() {
@@ -344,15 +364,15 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
           data[name] = val;
         }
         err.classList.add("hidden");
-        const btn = panel.querySelector(".btn-primary");
-        btn.disabled = true; btn.textContent = t("common.saving");
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner h-4 w-4"></span><span>${esc(t("common.saving"))}</span>`;
         try {
           await onSubmit(data);
           closeFn(); resolve(true);
         } catch (e) {
           err.textContent = e.message || t("common.couldntSave");
           err.classList.remove("hidden");
-          btn.disabled = false; btn.textContent = submitLabel;
+          submitBtn.disabled = false; submitBtn.textContent = submitLabel;
         }
       }
       return panel;
@@ -409,8 +429,27 @@ export function toolbar(title, right) {
 }
 
 /* Loading + error helpers for live views. */
-export function loading(text = "Loading…") {
-  return el("div", { class: "card text-center py-10 text-sm text-soft" }, text);
+/** Centered spinner + text for data loading. */
+export function loading(text) {
+  return el("div", { class: "flex flex-col items-center justify-center gap-3 py-16" }, [
+    el("span", { class: "spinner spinner-lg text-brand-500" }),
+    el("span", { class: "text-sm font-medium text-soft" }, text || t("common.loading")),
+  ]);
+}
+
+/** Standalone spinner element (e.g. inside a button). */
+export function spinner(extra = "") {
+  return el("span", { class: "spinner " + extra });
+}
+
+/** Run an async fn while showing a spinner inside `btn` and disabling it. */
+export async function withButtonLoading(btn, fn) {
+  if (!btn) return fn();
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner h-4 w-4"></span>';
+  try { return await fn(); }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 export function errorCard(text) {
   return el("div", { class: "card" }, [

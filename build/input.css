@@ -58,8 +58,12 @@
   .btn-ghost { @apply btn border border-line bg-white text-ink hover:border-brand-400 hover:text-brand-700; }
   .btn-danger { @apply btn bg-danger text-white hover:brightness-95; }
 
-  .field { @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-soft focus:border-brand-400; }
-  .label { @apply mb-1.5 block text-sm font-semibold text-ink; }
+  .field { @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-soft transition focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10; }
+  .label { @apply mb-1.5 block text-sm font-medium text-soft; }
+
+  /* Spinner (uses current text color). */
+  .spinner { @apply inline-block h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent align-[-3px]; }
+  .spinner-lg { @apply h-9 w-9 border-[3px]; }
 
   .card { @apply rounded-2xl border border-line bg-white p-5; }
   .kpi { @apply card flex flex-col gap-1; }
@@ -96,3 +100,10 @@
   /* Softer, more Fluent cards + page chrome */
   .fluent-card { @apply rounded-xl border border-line bg-white p-4; }
 }
+
+/* ---- Modal / sheet animations ---- */
+@keyframes tabib-pop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes tabib-fade { from { opacity: 0; } to { opacity: 1; } }
+.anim-pop { animation: tabib-pop .2s cubic-bezier(.21, 1, .21, 1) both; }
+.anim-fade { animation: tabib-fade .15s ease both; }
+@media (prefers-reduced-motion: reduce) { .anim-pop, .anim-fade { animation: none; } }
