@@ -1,13 +1,41 @@
-/** Suppliers — live list (read-only; CRUD is Phase 3).
- * Fields mirror supplier_isar.dart (docs/REFERENCE.md). */
-import { watch } from "../repo.js";
-import { el, table, searchInput, toolbar, loading } from "../ui.js";
+/** Suppliers — live list + create/edit. Fields mirror supplier_isar.dart. */
+import { watch, create, update } from "../repo.js";
+import { el, table, searchInput, toolbar, loading, formModal, toast } from "../ui.js";
 
 export default function render(outlet, ctx) {
+  const pid = ctx.pharmacyId;
   let rows = null, q = "";
+
+  async function form(existing) {
+    const ok = await formModal({
+      title: existing ? "Edit supplier" : "Add supplier",
+      values: existing ? { ...existing, itemsSupplied: (existing.itemsSupplied || []).join(", ") } : {},
+      fields: [
+        { name: "name", label: "Name", required: true },
+        { name: "contactName", label: "Contact person" },
+        { name: "phone", label: "Phone", type: "tel" },
+        { name: "email", label: "Email", type: "email" },
+        { name: "address", label: "Address", full: true },
+        { name: "itemsSupplied", label: "Items supplied", help: "Comma-separated", full: true },
+        { name: "notes", label: "Notes", type: "textarea", full: true },
+      ],
+      onSubmit: async (d) => {
+        const payload = {
+          name: d.name, contactName: d.contactName, phone: d.phone, email: d.email,
+          address: d.address, notes: d.notes,
+          itemsSupplied: (d.itemsSupplied || "").split(",").map((s) => s.trim()).filter(Boolean),
+        };
+        if (existing) await update(pid, "suppliers", existing.firestoreId || existing.id, payload);
+        else await create(pid, "suppliers", { ...payload, createdAt: new Date().toISOString() });
+      },
+    });
+    if (ok) toast(existing ? "Supplier updated" : "Supplier added", { type: "ok" });
+  }
+
+  const addBtn = el("button", { class: "btn-primary", onclick: () => form(null) }, "+ Add supplier");
   const host = el("div", {}, loading());
   outlet.append(el("div", { class: "space-y-5" }, [
-    toolbar("Suppliers", searchInput("Search name or contact…", (v) => { q = v; paint(); })),
+    toolbar("Suppliers", el("div", { class: "flex gap-2" }, [searchInput("Search name or contact…", (v) => { q = v; paint(); }), addBtn])),
     host,
   ]));
 
@@ -22,8 +50,9 @@ export default function render(outlet, ctx) {
       { label: "Phone", render: (s) => s.phone || "—" },
       { label: "Email", render: (s) => s.email || "—" },
       { label: "Address", render: (s) => s.address || "—" },
-    ], filtered, { empty: "No suppliers yet", emptyHint: "Suppliers added in the app appear here." }));
+      { label: "", render: (s) => el("button", { class: "btn-ghost px-2.5 py-1 text-xs", onclick: () => form(s) }, "Edit") },
+    ], filtered, { empty: "No suppliers yet", emptyHint: "Add your first supplier with the button above." }));
   }
 
-  return watch(ctx.pharmacyId, "suppliers", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });
+  return watch(pid, "suppliers", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });
 }

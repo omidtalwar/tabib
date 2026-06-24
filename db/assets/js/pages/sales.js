@@ -1,36 +1,156 @@
-/** Sales — live read-only history. Full POS (cart + atomic stock decrement) is
- * Phase 3. Fields mirror sale_isar.dart: items in `itemsJson` (JSON string),
- * dates ISO strings, money in `total` (docs/REFERENCE.md). */
-import { watch, toDate } from "../repo.js";
-import { el, table, searchInput, toolbar, money, fmtDate, loading } from "../ui.js";
+/** Sales — history + POS. New sale commits the sale and decrements each line's
+ * stock as one atomic, offline-capable writeBatch (commitSale). Oversell is
+ * blocked against cached stock. Shapes mirror sale_isar.dart (itemsJson string,
+ * ISO createdAt, RCP-{millis} receipt). */
+import { watch, commitSale, uuid, toDate } from "../repo.js";
+import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog } from "../ui.js";
 
-function itemCount(sale) {
-  try { return JSON.parse(sale.itemsJson || "[]").length; } catch { return 0; }
-}
+const PAYMENTS = ["cash", "card", "insurance", "credit"];
 
 export default function render(outlet, ctx) {
-  let rows = null, q = "";
-  const host = el("div", {}, loading());
-  outlet.append(el("div", { class: "space-y-5" }, [
-    toolbar("Sales (POS)", searchInput("Search receipt or patient…", (v) => { q = v; paint(); })),
-    el("p", { class: "text-sm text-soft" }, "Read-only history. New-sale POS with atomic stock decrement is Phase 3."),
-    host,
-  ]));
+  const pid = ctx.pharmacyId;
+  let sales = null, drugs = [];
+  let mode = "history";
+  const cart = []; // { drugId, drugName, unitPrice, quantity, stock }
+  let patientName = "", paymentMethod = "cash", discountPercent = 0, insuranceCoverage = 0;
 
-  function paint() {
-    if (!rows) return;
-    const filtered = rows
-      .filter((s) => !q || [s.receiptNumber, s.patientName].some((x) => (x || "").toLowerCase().includes(q)))
-      .sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
-    host.replaceChildren(table([
-      { label: "Receipt", render: (s) => s.receiptNumber || s.firestoreId?.slice(0, 8) || "—" },
+  const root = el("div", { class: "space-y-5" });
+  outlet.append(root);
+
+  function totals() {
+    const subtotal = cart.reduce((a, c) => a + c.unitPrice * c.quantity, 0);
+    const discountAmount = subtotal * (Number(discountPercent) || 0) / 100;
+    const total = Math.max(0, subtotal - discountAmount - (Number(insuranceCoverage) || 0));
+    return { subtotal, discountAmount, total };
+  }
+
+  async function confirmSale() {
+    if (!cart.length) return;
+    for (const c of cart) {
+      const d = drugs.find((x) => (x.firestoreId || x.id) === c.drugId);
+      const stock = d ? (d.stockQuantity ?? 0) : 0;
+      if (c.quantity > stock) return toast(`Not enough stock for ${c.drugName} (have ${stock})`, { type: "error" });
+    }
+    const controlled = cart.filter((c) => { const d = drugs.find((x) => (x.firestoreId || x.id) === c.drugId); return d && d.isControlled; });
+    if (controlled.length && !(await confirmDialog(`This sale includes controlled drug(s): ${controlled.map((c) => c.drugName).join(", ")}. Continue?`, { confirmLabel: "Sell" }))) return;
+
+    const { subtotal, discountAmount, total } = totals();
+    const items = cart.map((c) => ({ drugId: c.drugId, drugName: c.drugName, quantity: c.quantity, unitPrice: c.unitPrice, subtotal: c.unitPrice * c.quantity }));
+    const saleId = uuid();
+    const payload = {
+      id: Date.now(), prescriptionId: "", patientId: "", patientName,
+      itemsJson: JSON.stringify(items),
+      subtotal, discountPercent: Number(discountPercent) || 0, discountAmount,
+      insuranceCoverage: Number(insuranceCoverage) || 0, total,
+      paymentMethod, staffName: ctx.session.email || "",
+      createdAt: new Date().toISOString(), receiptNumber: `RCP-${Date.now()}`, isDirty: false,
+    };
+    try {
+      await commitSale(pid, saleId, payload, items);
+      toast(`Sale recorded — ${money(total)}`, { type: "ok" });
+      cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0;
+      mode = "history"; paint();
+    } catch (e) {
+      toast(e.message || "Couldn't record the sale", { type: "error" });
+    }
+  }
+
+  function posView() {
+    const results = el("div", { class: "mt-2 grid gap-1" });
+    const search = searchInput("Search a drug to add…", (v) => {
+      results.replaceChildren();
+      if (!v) return;
+      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(v)).slice(0, 8)
+        .forEach((d) => results.append(el("button", {
+          class: "flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm hover:bg-brand-50 text-start",
+          onclick: () => addToCart(d),
+        }, [
+          el("span", {}, [el("span", { class: "font-semibold text-ink" }, d.name), el("span", { class: "ms-2 text-soft" }, money(d.sellingPrice))]),
+          el("span", { class: "text-xs text-soft" }, `stock ${d.stockQuantity ?? 0}`),
+        ])));
+    });
+
+    const cartHost = el("div", {});
+    const totalsHost = el("div", {});
+
+    function addToCart(d) {
+      const id = d.firestoreId || d.id;
+      const existing = cart.find((c) => c.drugId === id);
+      if (existing) existing.quantity += 1;
+      else cart.push({ drugId: id, drugName: d.name, unitPrice: Number(d.sellingPrice) || 0, quantity: 1, stock: d.stockQuantity ?? 0 });
+      drawCart();
+    }
+    function drawCart() {
+      if (!cart.length) { cartHost.replaceChildren(el("p", { class: "text-sm text-soft py-6 text-center" }, "Cart is empty — search and add drugs above.")); totalsHost.replaceChildren(); return; }
+      cartHost.replaceChildren(el("table", { class: "table" }, [
+        el("thead", {}, el("tr", {}, ["Drug", "Qty", "Price", "Subtotal", ""].map((h) => el("th", {}, h)))),
+        el("tbody", {}, cart.map((c, i) => el("tr", {}, [
+          el("td", {}, c.drugName),
+          el("td", {}, el("input", { type: "number", min: "1", value: String(c.quantity), class: "field w-20 py-1",
+            onchange: (e) => { c.quantity = Math.max(1, Number(e.target.value) || 1); drawCart(); } })),
+          el("td", {}, money(c.unitPrice)),
+          el("td", {}, money(c.unitPrice * c.quantity)),
+          el("td", {}, el("button", { class: "btn-ghost px-2 py-1 text-xs", onclick: () => { cart.splice(i, 1); drawCart(); } }, "✕")),
+        ]))),
+      ]));
+      const t = totals();
+      totalsHost.replaceChildren(el("div", { class: "mt-4 grid gap-3 sm:grid-cols-2" }, [
+        el("div", { class: "grid gap-2" }, [
+          labeled("Patient (optional)", el("input", { class: "field", value: patientName, oninput: (e) => patientName = e.target.value })),
+          labeled("Payment", select(PAYMENTS, paymentMethod, (v) => paymentMethod = v)),
+          labeled("Discount %", el("input", { class: "field", type: "number", min: "0", value: String(discountPercent), oninput: (e) => { discountPercent = e.target.value; drawCart(); } })),
+          labeled("Insurance covers", el("input", { class: "field", type: "number", min: "0", value: String(insuranceCoverage), oninput: (e) => { insuranceCoverage = e.target.value; drawCart(); } })),
+        ]),
+        el("div", { class: "rounded-xl bg-brand-50 p-4 space-y-1.5 text-sm" }, [
+          row("Subtotal", money(t.subtotal)),
+          row("Discount", "− " + money(t.discountAmount)),
+          row("Insurance", "− " + money(Number(insuranceCoverage) || 0)),
+          el("div", { class: "flex justify-between border-t border-brand-200 pt-2 text-base font-bold text-ink" }, [el("span", {}, "Total"), el("span", {}, money(t.total))]),
+          el("button", { class: "btn-primary w-full mt-2", onclick: confirmSale }, "Confirm sale"),
+        ]),
+      ]));
+    }
+    drawCart();
+
+    return el("div", { class: "card" }, [
+      el("p", { class: "font-semibold text-ink" }, "New sale"),
+      search, results, el("div", { class: "mt-4 overflow-x-auto" }, cartHost), totalsHost,
+    ]);
+  }
+
+  function historyView() {
+    const rows = (sales || []).slice().sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
+    return table([
+      { label: "Receipt", render: (s) => s.receiptNumber || (s.firestoreId || "").slice(0, 8) || "—" },
       { label: "Patient", render: (s) => s.patientName || "—" },
-      { label: "Items", render: (s) => String(itemCount(s)) },
+      { label: "Items", render: (s) => { try { return String(JSON.parse(s.itemsJson || "[]").length); } catch { return "0"; } } },
       { label: "Payment", render: (s) => s.paymentMethod || "—" },
       { label: "Total", render: (s) => money(s.total) },
       { label: "When", render: (s) => fmtDate(toDate(s.createdAt)) },
-    ], filtered, { empty: "No sales yet", emptyHint: "Sales recorded in the app appear here." }));
+    ], rows, { empty: "No sales yet", emptyHint: "Start a new sale with the button above." });
   }
 
-  return watch(ctx.pharmacyId, "sales", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });
+  function paint() {
+    const toggle = mode === "pos"
+      ? el("button", { class: "btn-ghost", onclick: () => { mode = "history"; paint(); } }, "← Back to history")
+      : el("button", { class: "btn-primary", onclick: () => { mode = "pos"; paint(); } }, "+ New sale");
+    root.replaceChildren(
+      toolbar(mode === "pos" ? "New sale" : "Sales", toggle),
+      mode === "pos" ? posView() : (sales == null ? loading() : historyView())
+    );
+  }
+
+  // helpers
+  function labeled(label, node) { return el("label", { class: "block" }, [el("span", { class: "label" }, label), node]); }
+  function row(l, r) { return el("div", { class: "flex justify-between text-soft" }, [el("span", {}, l), el("span", {}, r)]); }
+  function select(opts, val, on) {
+    return el("select", { class: "field", onchange: (e) => on(e.target.value) }, opts.map((o) => {
+      const opt = el("option", { value: o }, o); if (o === val) opt.selected = true; return opt;
+    }));
+  }
+
+  paint();
+  const offDrugs = watch(pid, "drugs", { onData: (d) => { drugs = d; }, onError: () => { drugs = []; } });
+  const offSales = watch(pid, "sales", { onData: (d) => { sales = d; if (mode === "history") paint(); }, onError: () => { sales = []; if (mode === "history") paint(); } });
+  return () => { offDrugs(); offSales(); };
 }

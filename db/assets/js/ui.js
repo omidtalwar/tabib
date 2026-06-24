@@ -150,6 +150,92 @@ export function table(columns, rows, { empty = "Nothing here yet", emptyHint = "
   ]);
 }
 
+/* ---------------- form modal ----------------
+ * fields: [{ name, label, type, options?, required?, step?, min?, placeholder?, help? }]
+ *   type: text | number | date | select | checkbox | textarea | tel | email
+ * values: initial values (edit mode). onSubmit(data) where data is typed:
+ *   number->Number, checkbox->bool, date->"YYYY-MM-DD" string, else string.
+ * Return a Promise that resolves true on save, false on cancel. */
+export function formModal({ title, fields, values = {}, submitLabel = "Save", onSubmit }) {
+  return new Promise((resolve) => {
+    const inputs = {};
+    const err = el("p", { class: "hidden text-sm font-semibold text-danger" });
+
+    const body = el("div", { class: "grid gap-3 sm:grid-cols-2" }, fields.map((f) => {
+      const id = `f_${f.name}`;
+      let input;
+      const v = values[f.name];
+      if (f.type === "select") {
+        input = el("select", { id, class: "field" }, (f.options || []).map((o) => {
+          const opt = el("option", { value: o.value ?? o }, o.label ?? o);
+          if (String(v ?? f.default ?? "") === String(o.value ?? o)) opt.selected = true;
+          return opt;
+        }));
+      } else if (f.type === "checkbox") {
+        input = el("input", { id, type: "checkbox", class: "h-5 w-5 rounded border-line text-brand-500" });
+        if (v) input.checked = true;
+      } else if (f.type === "textarea") {
+        input = el("textarea", { id, class: "field", rows: "2", placeholder: f.placeholder || "" }, v ?? "");
+      } else {
+        input = el("input", {
+          id, type: f.type || "text", class: "field",
+          placeholder: f.placeholder || "", step: f.step, min: f.min,
+          value: v != null ? String(v) : "",
+        });
+      }
+      inputs[f.name] = { input, f };
+      const wrap = el("div", { class: f.full || f.type === "textarea" ? "sm:col-span-2" : "" }, [
+        el("label", { class: "label", for: id }, f.label + (f.required ? " *" : "")),
+        f.type === "checkbox"
+          ? el("label", { class: "flex items-center gap-2 text-sm text-ink" }, [input, f.help || ""])
+          : input,
+        f.help && f.type !== "checkbox" ? el("p", { class: "mt-1 text-xs text-soft" }, f.help) : null,
+      ]);
+      return wrap;
+    }));
+
+    const close = modal((closeFn) => {
+      const panel = el("div", {}, [
+        el("h3", { class: "text-lg font-bold text-ink" }, title),
+        el("div", { class: "mt-4" }, body),
+        err,
+        el("div", { class: "mt-5 flex justify-end gap-2" }, [
+          el("button", { type: "button", class: "btn-ghost", onclick: () => { closeFn(); resolve(false); } }, "Cancel"),
+          el("button", { type: "button", class: "btn-primary", onclick: submit }, submitLabel),
+        ]),
+      ]);
+      async function submit() {
+        const data = {};
+        for (const [name, { input, f }] of Object.entries(inputs)) {
+          let val;
+          if (f.type === "checkbox") val = input.checked;
+          else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
+          else val = input.value.trim();
+          if (f.required && (val === "" || val == null)) {
+            err.textContent = `${f.label} is required.`;
+            err.classList.remove("hidden");
+            input.focus();
+            return;
+          }
+          data[name] = val;
+        }
+        err.classList.add("hidden");
+        const btn = panel.querySelector(".btn-primary");
+        btn.disabled = true; btn.textContent = "Saving…";
+        try {
+          await onSubmit(data);
+          closeFn(); resolve(true);
+        } catch (e) {
+          err.textContent = e.message || "Couldn't save. Try again.";
+          err.classList.remove("hidden");
+          btn.disabled = false; btn.textContent = submitLabel;
+        }
+      }
+      return panel;
+    }, { onClose: () => resolve(false) });
+  });
+}
+
 /* A search input that filters as you type; calls onInput(value). */
 export function searchInput(placeholder, onInput) {
   return el("input", {

@@ -23,6 +23,7 @@ import {
   updateDoc,
   serverTimestamp,
   runTransaction,
+  writeBatch,
   increment,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
@@ -178,7 +179,31 @@ export function adjustStock(pharmacyId, drugId, delta, extra = {}) {
  * Run an atomic transaction. Used by POS so the sale write AND every line-item
  * stock decrement commit together, with oversell protection (REFERENCE §5.6).
  * `fn` receives the Firestore `transaction` object and helper refs.
+ * NOTE: transactions require connectivity (they round-trip). For offline POS we
+ * use commitSale() instead.
  */
 export function txn(fn) {
   return runTransaction(db, (transaction) => fn(transaction, { docRef, colRef, pharmacyRef }));
+}
+
+/**
+ * Commit a sale + decrement each line's drug stock as ONE atomic writeBatch.
+ * A writeBatch is all-or-nothing AND works offline (queued, replayed atomically),
+ * so sales can be entered offline. Oversell is checked against cached stock in
+ * the page before calling this (a batch can't read). Stock uses FieldValue
+ * .increment so concurrent decrements from app/web compose correctly.
+ *   items: [{ drugId, quantity }, ...]
+ */
+export function commitSale(pharmacyId, saleId, salePayload, items) {
+  const b = writeBatch(db);
+  b.set(docRef(pharmacyId, "sales", saleId), { ...salePayload, firestoreId: saleId });
+  const now = new Date().toISOString();
+  for (const it of items) {
+    if (!it.drugId) continue;
+    b.update(docRef(pharmacyId, "drugs", it.drugId), {
+      stockQuantity: increment(-Math.abs(it.quantity || 0)),
+      lastSyncedAt: now,
+    });
+  }
+  return b.commit();
 }
