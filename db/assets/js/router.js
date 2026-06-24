@@ -10,6 +10,8 @@
  * where ctx = { pharmacyId, session, params:[...], setTitle(fn) }.
  */
 
+import { t } from "./i18n.js";
+
 const PAGES = [
   "dashboard", "drugs", "inventory", "sales",
   "prescriptions", "patients", "suppliers", "expenses", "reports", "settings",
@@ -65,8 +67,8 @@ async function handle() {
     _outlet.replaceChildren();
     const div = document.createElement("div");
     div.className = "card";
-    div.innerHTML = `<p class="font-semibold text-danger">This page failed to load.</p>
-      <p class="mt-1 text-sm text-soft">Check your connection and try again.</p>`;
+    div.innerHTML = `<p class="font-semibold text-danger">${t("app.pageFailed")}</p>
+      <p class="mt-1 text-sm text-soft">${t("app.pageFailedHint")}</p>`;
     _outlet.append(div);
   }
 }

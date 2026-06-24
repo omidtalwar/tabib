@@ -1,6 +1,7 @@
-/** Suppliers — live list + create/edit. Fields mirror supplier_isar.dart. */
+/** Suppliers — live list + create/edit. */
 import { watch, create, update } from "../repo.js";
 import { el, table, searchInput, toolbar, loading, formModal, toast, iconButton, ICON } from "../ui.js";
+import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
@@ -8,16 +9,16 @@ export default function render(outlet, ctx) {
 
   async function form(existing) {
     const ok = await formModal({
-      title: existing ? "Edit supplier" : "Add supplier",
+      title: existing ? t("sup.editTitle") : t("sup.addTitle"),
       values: existing ? { ...existing, itemsSupplied: (existing.itemsSupplied || []).join(", ") } : {},
       fields: [
-        { name: "name", label: "Name", required: true },
-        { name: "contactName", label: "Contact person" },
-        { name: "phone", label: "Phone", type: "tel" },
-        { name: "email", label: "Email", type: "email" },
-        { name: "address", label: "Address", full: true },
-        { name: "itemsSupplied", label: "Items supplied", help: "Comma-separated", full: true },
-        { name: "notes", label: "Notes", type: "textarea", full: true },
+        { name: "name", label: t("sup.fName"), required: true },
+        { name: "contactName", label: t("sup.fContact") },
+        { name: "phone", label: t("sup.fPhone"), type: "tel" },
+        { name: "email", label: t("sup.fEmail"), type: "email" },
+        { name: "address", label: t("sup.fAddress"), full: true },
+        { name: "itemsSupplied", label: t("sup.fItems"), help: t("sup.fItemsHelp"), full: true },
+        { name: "notes", label: t("sup.fNotes"), type: "textarea", full: true },
       ],
       onSubmit: async (d) => {
         const payload = {
@@ -29,13 +30,13 @@ export default function render(outlet, ctx) {
         else await create(pid, "suppliers", { ...payload, createdAt: new Date().toISOString() });
       },
     });
-    if (ok) toast(existing ? "Supplier updated" : "Supplier added", { type: "ok" });
+    if (ok) toast(existing ? t("sup.updated") : t("sup.added"), { type: "ok" });
   }
 
-  const addBtn = el("button", { class: "btn-primary", onclick: () => form(null) }, "+ Add supplier");
+  const addBtn = el("button", { class: "btn-primary", onclick: () => form(null) }, t("sup.add"));
   const host = el("div", {}, loading());
   outlet.append(el("div", { class: "space-y-5" }, [
-    toolbar("Suppliers", el("div", { class: "flex gap-2" }, [searchInput("Search name or contact…", (v) => { q = v; paint(); }), addBtn])),
+    toolbar(t("sup.title"), el("div", { class: "flex flex-wrap gap-2" }, [searchInput(t("sup.searchPh"), (v) => { q = v; paint(); }), addBtn])),
     host,
   ]));
 
@@ -45,13 +46,13 @@ export default function render(outlet, ctx) {
       .filter((s) => !q || [s.name, s.contactName, s.phone].some((x) => (x || "").toLowerCase().includes(q)))
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     host.replaceChildren(table([
-      { label: "Name", render: (s) => s.name || "—" },
-      { label: "Contact", render: (s) => s.contactName || "—" },
-      { label: "Phone", render: (s) => s.phone || "—" },
-      { label: "Email", render: (s) => s.email || "—" },
-      { label: "Address", render: (s) => s.address || "—" },
-      { label: "", render: (s) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(s), { color: "blue" })) },
-    ], filtered, { empty: "No suppliers yet", emptyHint: "Add your first supplier with the button above." }));
+      { label: t("sup.colName"), render: (s) => s.name || "—" },
+      { label: t("sup.colContact"), render: (s) => s.contactName || "—" },
+      { label: t("sup.colPhone"), render: (s) => s.phone || "—" },
+      { label: t("sup.colEmail"), render: (s) => s.email || "—" },
+      { label: t("sup.colAddress"), render: (s) => s.address || "—" },
+      { label: "", render: (s) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, t("common.edit"), () => form(s), { color: "blue" })) },
+    ], filtered, { empty: t("sup.empty"), emptyHint: t("sup.emptyHint") }));
   }
 
   return watch(pid, "suppliers", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });

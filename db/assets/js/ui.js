@@ -4,6 +4,7 @@
  */
 
 import { formatJalali, gregToJalali, jalaliToDate, todayJalali, jMonthLength, JMONTHS } from "./jalali.js";
+import { t } from "./i18n.js";
 
 /* ---------------- escaping ---------------- */
 export function esc(s) {
@@ -61,13 +62,13 @@ export function modal(render, { onClose } = {}) {
 }
 
 /** Confirm dialog → Promise<boolean>. */
-export function confirmDialog(message, { confirmLabel = "Confirm", danger = false } = {}) {
+export function confirmDialog(message, { confirmLabel = t("common.confirm"), danger = false } = {}) {
   return new Promise((resolve) => {
     modal(
       (close) => el("div", {}, [
         el("p", { class: "text-ink" }, message),
         el("div", { class: "mt-5 flex justify-end gap-2" }, [
-          el("button", { class: "btn-ghost", onclick: () => { close(); resolve(false); } }, "Cancel"),
+          el("button", { class: "btn-ghost", onclick: () => { close(); resolve(false); } }, t("common.cancel")),
           el("button", { class: danger ? "btn-danger" : "btn-primary", onclick: () => { close(); resolve(true); } }, confirmLabel),
         ]),
       ]),
@@ -112,16 +113,16 @@ export function daysUntil(date) {
 /* ---------------- stock / expiry status (safety-critical) ---------------- */
 /** Returns { key, label } for a drug's stock state. Field names per REFERENCE. */
 export function stockStatus({ stockQuantity = 0, reorderThreshold = 0 } = {}) {
-  if (stockQuantity <= 0) return { key: "out", label: "Out of stock" };
-  if (stockQuantity <= reorderThreshold) return { key: "low", label: "Low stock" };
-  return { key: "ok", label: "In stock" };
+  if (stockQuantity <= 0) return { key: "out", label: t("status.out") };
+  if (stockQuantity <= reorderThreshold) return { key: "low", label: t("status.low") };
+  return { key: "ok", label: t("status.in") };
 }
 
 export function expiryStatus(expiryDate) {
   const d = daysUntil(expiryDate);
   if (d == null) return { key: "none", label: "" };
-  if (d < 0) return { key: "expired", label: "Expired" };
-  if (d <= 30) return { key: "expiring", label: `Expires in ${d}d` };
+  if (d < 0) return { key: "expired", label: t("status.expired") };
+  if (d <= 30) return { key: "expiring", label: `${d}d` };
   return { key: "ok", label: "" };
 }
 
@@ -266,7 +267,7 @@ export function table(columns, rows, { empty = "Nothing here yet", emptyHint = "
  * values: initial values (edit mode). onSubmit(data) where data is typed:
  *   number->Number, checkbox->bool, date->"YYYY-MM-DD" string, else string.
  * Return a Promise that resolves true on save, false on cancel. */
-export function formModal({ title, fields, values = {}, submitLabel = "Save", onSubmit }) {
+export function formModal({ title, fields, values = {}, submitLabel = t("common.save"), onSubmit }) {
   return new Promise((resolve) => {
     const inputs = {};
     const err = el("p", { class: "hidden text-sm font-semibold text-danger" });
@@ -321,7 +322,7 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
         el("div", { class: "mt-4" }, body),
         err,
         el("div", { class: "mt-5 flex justify-end gap-2" }, [
-          el("button", { type: "button", class: "btn-ghost", onclick: () => { closeFn(); resolve(false); } }, "Cancel"),
+          el("button", { type: "button", class: "btn-ghost", onclick: () => { closeFn(); resolve(false); } }, t("common.cancel")),
           el("button", { type: "button", class: "btn-primary", onclick: submit }, submitLabel),
         ]),
       ]);
@@ -335,7 +336,7 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
           else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
           else val = input.value.trim();
           if (f.required && (val === "" || val == null)) {
-            err.textContent = `${f.label} is required.`;
+            err.textContent = t("common.required", { label: f.label });
             err.classList.remove("hidden");
             if (input.focus) input.focus();
             return;
@@ -344,12 +345,12 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
         }
         err.classList.add("hidden");
         const btn = panel.querySelector(".btn-primary");
-        btn.disabled = true; btn.textContent = "Saving…";
+        btn.disabled = true; btn.textContent = t("common.saving");
         try {
           await onSubmit(data);
           closeFn(); resolve(true);
         } catch (e) {
-          err.textContent = e.message || "Couldn't save. Try again.";
+          err.textContent = e.message || t("common.couldntSave");
           err.classList.remove("hidden");
           btn.disabled = false; btn.textContent = submitLabel;
         }

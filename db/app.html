@@ -17,11 +17,11 @@
 <body class="min-h-screen">
   <!-- Boot/guard screen -->
   <div id="boot" class="min-h-screen grid place-items-center">
-    <p class="text-sm font-semibold text-soft">Loading…</p>
+    <p class="text-sm font-semibold text-soft" data-i18n="common.loading">Loading…</p>
   </div>
 
   <!-- Offline banner -->
-  <div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-50 bg-warn px-4 py-1.5 text-center text-sm font-semibold text-white">
+  <div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-50 bg-warn px-4 py-1.5 text-center text-sm font-semibold text-white" data-i18n="app.offlineBanner">
     You're offline. Changes are saved on this device and will sync when you reconnect.
   </div>
 
@@ -63,14 +63,14 @@
                 </div>
               </div>
               <div class="menu-sep"></div>
-              <button id="rtlToggle" class="menu-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h11M4 12h8M4 19h11"/><path d="m17 8 4 4-4 4"/></svg>
-                <span class="flex-1 text-start">Right-to-left</span>
-                <span id="rtlState" class="text-xs font-semibold text-soft">Off</span>
-              </button>
+              <p class="px-2.5 pb-0.5 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-soft" data-i18n="menu.language">Language</p>
+              <button class="menu-item lang-opt" data-lang="en"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="flex-1 text-start">English</span><span class="lang-check w-4 text-brand-600"></span></button>
+              <button class="menu-item lang-opt" data-lang="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="flex-1 text-start">دری</span><span class="lang-check w-4 text-brand-600"></span></button>
+              <button class="menu-item lang-opt" data-lang="ps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="flex-1 text-start">پښتو</span><span class="lang-check w-4 text-brand-600"></span></button>
+              <div class="menu-sep"></div>
               <button id="logoutBtn" class="menu-item danger">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
-                <span>Sign out</span>
+                <span data-i18n="menu.signOut">Sign out</span>
               </button>
             </div>
           </div>
@@ -85,6 +85,7 @@
     import { requirePharmacySession, logout, currentSession } from "./assets/js/session.js";
     import { startRouter, navigate, PAGES } from "./assets/js/router.js";
     import { pharmacyRef, listOwnedPharmacies, getActivePharmacy, setActivePharmacy } from "./assets/js/repo.js";
+    import { initI18n, t, applyTranslations, setLocale, getLocale, LOCALE_LABELS } from "./assets/js/i18n.js";
     import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     // PWA: keep the installed app shell available offline.
@@ -109,19 +110,20 @@
     function showUnlinked(email) {
       document.getElementById("boot").innerHTML = `
         <div class="card max-w-md text-center">
-          <p class="text-base font-semibold text-ink">Account not linked to a pharmacy</p>
-          <p class="mt-1 text-sm text-soft">${email ?? "This account"} isn't a member of any pharmacy yet.
-            Ask your pharmacy admin to add you, then sign in again.</p>
-          <button id="out" class="btn-ghost mt-4">Sign out</button>
+          <p class="text-base font-semibold text-ink">${t("app.notLinkedTitle")}</p>
+          <p class="mt-1 text-sm text-soft">${t("app.notLinkedBody", { email: email ?? "This account" })}</p>
+          <button id="out" class="btn-ghost mt-4">${t("menu.signOut")}</button>
         </div>`;
       document.getElementById("out").addEventListener("click", () => logout().then(() => location.replace("./index.html")));
     }
 
     (async function main() {
+      await initI18n();
+      applyTranslations(document);
       if (!isConfigured) {
         document.getElementById("boot").innerHTML =
-          `<div class="card max-w-md text-center"><p class="font-semibold text-warn">Firebase isn't configured.</p>
-           <p class="mt-1 text-sm text-soft">Add your web config in <code>assets/js/firebase.js</code>, then reload.</p></div>`;
+          `<div class="card max-w-md text-center"><p class="font-semibold text-warn">${t("app.configMissing")}</p>
+           <p class="mt-1 text-sm text-soft">${t("app.configMissingHint")}</p></div>`;
         return;
       }
 
@@ -155,7 +157,7 @@
       const displayName = session.displayName || (email.split("@")[0] || "User").replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       document.getElementById("menuName").textContent = displayName;
       document.getElementById("menuEmail").textContent = email;
-      document.getElementById("sideRole").textContent = session.role === "admin" ? "Admin" : "Pharmacy";
+      document.getElementById("sideRole").textContent = t(session.role === "admin" ? "app.roleAdmin" : "app.roleStaff");
 
       // Build sidebar nav (colored icon tiles).
       const nav = document.getElementById("nav");
@@ -165,7 +167,7 @@
         const a = document.createElement("a");
         a.href = `#/p/${active}/${page}`;
         a.className = "nav-tile";
-        a.innerHTML = `<span class="nav-ico" style="background:${n.color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span><span>${n.label}</span>`;
+        a.innerHTML = `<span class="nav-ico" style="background:${n.color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span><span>${t("nav." + page)}</span>`;
         nav.append(a);
         links[page] = a;
       }
@@ -218,16 +220,10 @@
       });
       document.addEventListener("keydown", (e) => { if (e.key === "Escape") userMenu.classList.add("hidden"); });
 
-      // RTL toggle (persisted), shown as a menu item.
-      const rtlSaved = localStorage.getItem("tabib_db_rtl") === "1";
-      if (rtlSaved) document.documentElement.dir = "rtl";
-      document.getElementById("rtlState").textContent = rtlSaved ? "On" : "Off";
-      document.getElementById("rtlToggle").addEventListener("click", (e) => {
-        e.stopPropagation();
-        const rtl = document.documentElement.dir !== "rtl";
-        document.documentElement.dir = rtl ? "rtl" : "ltr";
-        localStorage.setItem("tabib_db_rtl", rtl ? "1" : "0");
-        document.getElementById("rtlState").textContent = rtl ? "On" : "Off";
+      // Language menu — switching reloads in the chosen language (and direction).
+      document.querySelectorAll(".lang-opt").forEach((b) => {
+        if (b.getAttribute("data-lang") === getLocale()) b.querySelector(".lang-check").textContent = "✓";
+        b.addEventListener("click", (e) => { e.stopPropagation(); setLocale(b.getAttribute("data-lang")); });
       });
 
       // Reveal shell
@@ -247,7 +243,7 @@
       function setOnline(on) {
         banner.classList.toggle("hidden", on);
         dot.className = `h-2 w-2 rounded-full ${on ? "bg-ok" : "bg-warn"}`;
-        txt.textContent = on ? "Online" : "Offline";
+        txt.textContent = on ? t("app.online") : t("app.offline");
       }
       setOnline(navigator.onLine);
       addEventListener("online", () => setOnline(true));
@@ -260,7 +256,7 @@
         pharmacyId: active,
         onNavigate: (page) => {
           for (const [p, a] of Object.entries(links)) a.classList.toggle("active", p === page);
-          document.getElementById("pageTitle").textContent = (NAV[page] && NAV[page].label) || "—";
+          document.getElementById("pageTitle").textContent = t("nav." + page);
         },
       });
     })();

@@ -1,8 +1,7 @@
-/** Prescriptions — live read-only list. Create + dispense-to-POS is Phase 3.
- * Fields mirror prescription_isar.dart: items in `itemsJson`, status enum,
- * dates ISO strings (docs/REFERENCE.md). */
+/** Prescriptions — live read-only list. */
 import { watch, toDate } from "../repo.js";
 import { el, table, searchInput, toolbar, badge, fmtDate, loading } from "../ui.js";
+import { t } from "../i18n.js";
 
 const STATUS_KIND = {
   pending: "warn", dispensed: "ok", partially_dispensed: "warn",
@@ -16,7 +15,7 @@ export default function render(outlet, ctx) {
   let rows = null, q = "";
   const host = el("div", {}, loading());
   outlet.append(el("div", { class: "space-y-5" }, [
-    toolbar("Prescriptions", searchInput("Search patient or doctor…", (v) => { q = v; paint(); })),
+    toolbar(t("rx.title"), searchInput(t("rx.searchPh"), (v) => { q = v; paint(); })),
     host,
   ]));
 
@@ -26,13 +25,13 @@ export default function render(outlet, ctx) {
       .filter((p) => !q || [p.patientName, p.doctorName].some((x) => (x || "").toLowerCase().includes(q)))
       .sort((a, b) => (toDate(b.issuedDate)?.getTime() || 0) - (toDate(a.issuedDate)?.getTime() || 0));
     host.replaceChildren(table([
-      { label: "Patient", render: (p) => p.patientName || "—" },
-      { label: "Doctor", render: (p) => p.doctorName || "—" },
-      { label: "Items", render: (p) => String(itemCount(p)) },
-      { label: "Status", html: true, render: (p) => badge((p.status || "pending").replace("_", " "), STATUS_KIND[p.status] || "muted") },
-      { label: "Issued", render: (p) => fmtDate(toDate(p.issuedDate)) },
-      { label: "Expires", render: (p) => fmtDate(toDate(p.expiryDate)) },
-    ], filtered, { empty: "No prescriptions yet", emptyHint: "Prescriptions added in the app appear here." }));
+      { label: t("rx.colPatient"), render: (p) => p.patientName || "—" },
+      { label: t("rx.colDoctor"), render: (p) => p.doctorName || "—" },
+      { label: t("rx.colItems"), render: (p) => String(itemCount(p)) },
+      { label: t("rx.colStatus"), html: true, render: (p) => badge((p.status || "pending").replace("_", " "), STATUS_KIND[p.status] || "muted") },
+      { label: t("rx.colIssued"), render: (p) => fmtDate(toDate(p.issuedDate)) },
+      { label: t("rx.colExpires"), render: (p) => fmtDate(toDate(p.expiryDate)) },
+    ], filtered, { empty: t("rx.empty"), emptyHint: t("rx.emptyHint") }));
   }
 
   return watch(ctx.pharmacyId, "prescriptions", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });

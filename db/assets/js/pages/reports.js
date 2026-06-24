@@ -1,39 +1,25 @@
-/**
- * Reports — Sales / Inventory / Expiry / Financial / Customers, each with a
- * date-range filter, KPI summary, detail table, CSV export and print.
- * Aggregation is client-side over the pharmacy's drugs + sales (fine for a
- * single pharmacy; server-side aggregation would be added for very large data).
- * Purchases/payables/cash-reconciliation need data the app doesn't capture yet.
- */
+/** Reports — Sales / Inventory / Expiry / Financial / Customers, with date-range
+ * filter, KPIs, tables, CSV export and print. Client-side aggregation. */
 import { readAll, toDate } from "../repo.js";
-import { el, table, money, fmtDate, daysUntil, badge, loading, toolbar, filterSelect, shamsiDate, downloadCSV, printContent, barChart, esc } from "../ui.js";
+import { el, table, money, fmtDate, daysUntil, badge, loading, filterSelect, shamsiDate, downloadCSV, printContent, barChart, esc } from "../ui.js";
+import { t } from "../i18n.js";
 
-const TABS = [
-  ["sales", "Sales"], ["inventory", "Inventory"], ["expiry", "Expiry"],
-  ["purchases", "Purchases"], ["financial", "Financial"], ["customers", "Customers"],
-];
-const PRESETS = [
-  { value: "today", label: "Today" }, { value: "week", label: "Last 7 days" },
-  { value: "month", label: "This month" }, { value: "lastmonth", label: "Last month" },
-  { value: "year", label: "This year" }, { value: "all", label: "All time" },
-  { value: "custom", label: "Custom range" },
-];
+const TABS = ["sales", "inventory", "expiry", "purchases", "financial", "customers"];
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let drugs = null, sales = null, expenses = null;
   let tab = "sales", preset = "month", expiryWindow = 30;
-  let fromPick = null, toPick = null; // shamsiDate pickers when custom
-  const current = {}; // { title, kpis:[[label,value]], csv:[[...]] } for export/print
+  let fromPick = null, toPick = null;
+  const current = {};
 
-  const root = el("div", { class: "space-y-5" }, loading("Loading reports…"));
+  const root = el("div", { class: "space-y-5" }, loading());
   outlet.append(root);
 
   Promise.all([readAll(pid, "drugs"), readAll(pid, "sales"), readAll(pid, "expenses")])
     .then(([d, s, e]) => { drugs = d; sales = s; expenses = e; paint(); })
     .catch(() => { drugs = []; sales = []; expenses = []; paint(); });
 
-  /* ---------- date range ---------- */
   function range() {
     const now = new Date();
     const sod = (dt) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
@@ -44,9 +30,9 @@ export default function render(outlet, ctx) {
     else if (preset === "lastmonth") { from = new Date(now.getFullYear(), now.getMonth() - 1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59); }
     else if (preset === "year") from = new Date(now.getFullYear(), 0, 1);
     else if (preset === "custom") {
-      const f = fromPick && fromPick.value(); const t = toPick && toPick.value();
+      const f = fromPick && fromPick.value(); const tv = toPick && toPick.value();
       from = f ? new Date(f) : new Date(2000, 0, 1);
-      to = t ? new Date(new Date(t).setHours(23, 59, 59)) : to;
+      to = tv ? new Date(new Date(tv).setHours(23, 59, 59)) : to;
     } else from = new Date(2000, 0, 1);
     return { from, to };
   }
@@ -58,7 +44,6 @@ export default function render(outlet, ctx) {
   const drugMap = () => Object.fromEntries(drugs.map((d) => [d.firestoreId || d.id, d]));
   const num = (x) => Number(x) || 0;
 
-  /* ---------- shared UI ---------- */
   function kpiRow(items) {
     return el("div", { class: "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" },
       items.map(([label, value]) => el("div", { class: "kpi" }, [
@@ -69,7 +54,6 @@ export default function render(outlet, ctx) {
     return el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, title), node]);
   }
 
-  /* ---------- TABS ---------- */
   function salesTab() {
     const rs = rangeSales(), dm = drugMap();
     let gross = 0, profit = 0, units = 0;
@@ -90,67 +74,63 @@ export default function render(outlet, ctx) {
       }
     }
     const margin = gross ? Math.round((profit / gross) * 100) + "%" : "—";
-    const kpis = [["Gross sales", money(gross)], ["Net profit", money(profit)], ["Margin", margin], ["Sales", String(rs.length)], ["Items sold", String(units)]];
-
+    const kpis = [[t("rep.grossSales"), money(gross)], [t("rep.netProfit"), money(profit)], [t("rep.margin"), margin], [t("rep.sales"), String(rs.length)], [t("rep.itemsSold"), String(units)]];
     const days = Object.keys(day).sort().map((k) => day[k]).slice(-31);
     const prodRows = Object.entries(prod).sort((a, b) => b[1].rev - a[1].rev);
 
-    current.title = "Sales report";
-    current.kpis = kpis;
-    current.csv = [["Product", "Qty sold", "Revenue", "Profit"], ...prodRows.map(([n, v]) => [n, v.qty, v.rev.toFixed(2), v.profit.toFixed(2)])];
+    current.title = t("rep.title") + " — " + t("rep.tabSales"); current.kpis = kpis;
+    current.csv = [[t("rep.product"), t("rep.qty"), t("rep.revenue"), t("rep.profit")], ...prodRows.map(([n, v]) => [n, v.qty, v.rev.toFixed(2), v.profit.toFixed(2)])];
 
     const prodTable = table([
-      { label: "Product", render: (r) => r[0] },
-      { label: "Qty", render: (r) => String(r[1].qty) },
-      { label: "Revenue", render: (r) => money(r[1].rev) },
-      { label: "Profit", render: (r) => money(r[1].profit) },
-    ], prodRows, { empty: "No sales in this range" });
+      { label: t("rep.product"), render: (r) => r[0] },
+      { label: t("rep.qty"), render: (r) => String(r[1].qty) },
+      { label: t("rep.revenue"), render: (r) => money(r[1].rev) },
+      { label: t("rep.profit"), render: (r) => money(r[1].profit) },
+    ], prodRows, { empty: t("rep.noSalesRange") });
 
     const breakdown = (title, obj) => sectionCard(title, table(
-      [{ label: title, render: (r) => r[0] }, { label: "Revenue", render: (r) => money(r[1]) }],
+      [{ label: title, render: (r) => r[0] }, { label: t("rep.revenue"), render: (r) => money(r[1]) }],
       Object.entries(obj).sort((a, b) => b[1] - a[1]), { empty: "—" }));
 
     return el("div", { class: "space-y-5" }, [
       kpiRow(kpis),
-      days.length ? sectionCard("Sales over time", barChart(days)) : null,
-      sectionCard("By product", prodTable),
+      days.length ? sectionCard(t("rep.salesOverTime"), barChart(days)) : null,
+      sectionCard(t("rep.byProduct"), prodTable),
       el("div", { class: "grid gap-5 lg:grid-cols-3" }, [
-        breakdown("By category", Object.fromEntries(Object.entries(cat).map(([k, v]) => [k, v.rev]))),
-        breakdown("By payment method", pay),
-        breakdown("By cashier", user),
+        breakdown(t("rep.byCategory"), Object.fromEntries(Object.entries(cat).map(([k, v]) => [k, v.rev]))),
+        breakdown(t("rep.byPayment"), pay),
+        breakdown(t("rep.byCashier"), user),
       ]),
     ]);
   }
 
   function inventoryTab() {
     const active = drugs.filter((d) => d.isActive !== false);
-    let units = 0, costVal = 0, retailVal = 0;
-    for (const d of active) { const q = num(d.stockQuantity); units += q; costVal += q * num(d.unitPrice); retailVal += q * num(d.sellingPrice); }
+    let units = 0, costVal = 0;
+    for (const d of active) { const q = num(d.stockQuantity); units += q; costVal += q * num(d.unitPrice); }
     const low = active.filter((d) => num(d.stockQuantity) > 0 && num(d.stockQuantity) <= num(d.reorderThreshold));
     const out = active.filter((d) => num(d.stockQuantity) <= 0);
-
-    // Dead stock = active drugs with no units sold in the selected range.
     const sold = {};
     for (const s of rangeSales()) for (const it of parseItems(s)) sold[it.drugId] = (sold[it.drugId] || 0) + num(it.quantity);
     const dead = active.filter((d) => !(sold[d.firestoreId || d.id]));
 
-    const kpis = [["SKUs", String(active.length)], ["Units", String(units)], ["Stock value (cost)", money(costVal)], ["Low stock", String(low.length)], ["Out of stock", String(out.length)]];
-    current.title = "Inventory report"; current.kpis = kpis;
-    current.csv = [["Drug", "Category", "Stock", "Reorder ≤", "Cost value", "Retail value"],
-      ...active.map((d) => [d.name, d.category || "", d.stockQuantity ?? 0, d.reorderThreshold ?? 0, (num(d.stockQuantity) * num(d.unitPrice)).toFixed(2), (num(d.stockQuantity) * num(d.sellingPrice)).toFixed(2)])];
+    const kpis = [[t("rep.skus"), String(active.length)], [t("rep.units"), String(units)], [t("rep.stockValueCost"), money(costVal)], [t("rep.lowStock"), String(low.length)], [t("rep.outOfStock"), String(out.length)]];
+    current.title = t("rep.title") + " — " + t("rep.tabInventory"); current.kpis = kpis;
+    current.csv = [[t("drugs.colName"), t("rep.category"), t("drugs.colStock"), t("inv.colReorder"), t("rep.stockValueCost")],
+      ...active.map((d) => [d.name, d.category || "", d.stockQuantity ?? 0, d.reorderThreshold ?? 0, (num(d.stockQuantity) * num(d.unitPrice)).toFixed(2)])];
 
     const stockTable = (rows, empty) => table([
-      { label: "Drug", render: (d) => d.name || "—" },
-      { label: "Category", render: (d) => d.category || "—" },
-      { label: "Stock", render: (d) => String(d.stockQuantity ?? 0) },
-      { label: "Cost value", render: (d) => money(num(d.stockQuantity) * num(d.unitPrice)) },
+      { label: t("drugs.colName"), render: (d) => d.name || "—" },
+      { label: t("rep.category"), render: (d) => d.category || "—" },
+      { label: t("drugs.colStock"), render: (d) => String(d.stockQuantity ?? 0) },
+      { label: t("rep.stockValueCost"), render: (d) => money(num(d.stockQuantity) * num(d.unitPrice)) },
     ], rows, { empty });
 
     return el("div", { class: "space-y-5" }, [
       kpiRow(kpis),
-      sectionCard("Low stock (reorder)", stockTable(low, "Nothing low.")),
-      sectionCard("Out of stock", stockTable(out, "Nothing out of stock.")),
-      sectionCard(`Dead stock (no sales in range)`, stockTable(dead, "Everything moved in this range.")),
+      sectionCard(t("rep.lowStock"), stockTable(low, t("inv.nothingLow"))),
+      sectionCard(t("rep.outOfStock"), stockTable(out, t("inv.nothingOut"))),
+      sectionCard(t("rep.deadStock"), stockTable(dead, t("rep.everythingMoved"))),
     ]);
   }
 
@@ -163,26 +143,26 @@ export default function render(outlet, ctx) {
     const expiringVal = expiring.reduce((a, x) => a + val(x.d), 0);
     const expiredVal = expired.reduce((a, x) => a + val(x.d), 0);
 
-    const kpis = [[`Expiring ≤${expiryWindow}d`, String(expiring.length)], ["Expired", String(expired.length)], ["Expiring value", money(expiringVal)], ["Expired loss", money(expiredVal)]];
-    current.title = "Expiry report"; current.kpis = kpis;
-    current.csv = [["Drug", "Batch", "Expiry (Shamsi)", "Days", "Stock", "Loss value"],
+    const kpis = [[t("rep.expiringSoon"), String(expiring.length)], [t("status.expired"), String(expired.length)], [t("rep.expiringValue"), money(expiringVal)], [t("rep.expiredLoss"), money(expiredVal)]];
+    current.title = t("rep.title") + " — " + t("rep.tabExpiry"); current.kpis = kpis;
+    current.csv = [[t("drugs.colName"), t("rep.batch"), t("drugs.colExpiry"), t("rep.days"), t("drugs.colStock"), t("rep.lossValue")],
       ...[...expiring, ...expired].map((x) => [x.d.name, x.d.batchNumber || "", fmtDate(toDate(x.d.expiryDate)), x.n, x.d.stockQuantity ?? 0, val(x.d).toFixed(2)])];
 
-    const win = filterSelect([30, 60, 90].map((w) => ({ value: String(w), label: `Within ${w} days` })), String(expiryWindow), (v) => { expiryWindow = +v; paint(); }, "Expiry window");
+    const win = filterSelect([30, 60, 90].map((w) => ({ value: String(w), label: t("rep.within", { n: w }) })), String(expiryWindow), (v) => { expiryWindow = +v; paint(); }, t("rep.window"));
     const exTable = (rows, empty) => table([
-      { label: "Drug", render: (x) => x.d.name || "—" },
-      { label: "Batch", render: (x) => x.d.batchNumber || "—" },
-      { label: "Expiry", render: (x) => fmtDate(toDate(x.d.expiryDate)) },
-      { label: "Days", html: true, render: (x) => x.n < 0 ? badge("Expired", "danger") : badge(`${x.n}d`, x.n <= 30 ? "warn" : "muted") },
-      { label: "Stock", render: (x) => String(x.d.stockQuantity ?? 0) },
-      { label: "Loss value", render: (x) => money(val(x.d)) },
+      { label: t("drugs.colName"), render: (x) => x.d.name || "—" },
+      { label: t("rep.batch"), render: (x) => x.d.batchNumber || "—" },
+      { label: t("drugs.colExpiry"), render: (x) => fmtDate(toDate(x.d.expiryDate)) },
+      { label: t("rep.days"), html: true, render: (x) => x.n < 0 ? badge(t("status.expired"), "danger") : badge(`${x.n}d`, x.n <= 30 ? "warn" : "muted") },
+      { label: t("drugs.colStock"), render: (x) => String(x.d.stockQuantity ?? 0) },
+      { label: t("rep.lossValue"), render: (x) => money(val(x.d)) },
     ], rows, { empty });
 
     return el("div", { class: "space-y-5" }, [
-      el("div", { class: "flex items-center gap-2" }, [el("span", { class: "text-sm text-soft" }, "Window:"), win]),
+      el("div", { class: "flex items-center gap-2" }, [el("span", { class: "text-sm text-soft" }, t("rep.window")), win]),
       kpiRow(kpis),
-      sectionCard("Expiring soon", exTable(expiring, "Nothing expiring in this window.")),
-      sectionCard("Already expired (remove from shelf)", exTable(expired, "Nothing expired.")),
+      sectionCard(t("rep.expiringSoon"), exTable(expiring, t("inv.nothingExpiring"))),
+      sectionCard(t("rep.alreadyExpired"), exTable(expired, t("inv.nothingExpired"))),
     ]);
   }
 
@@ -203,22 +183,22 @@ export default function render(outlet, ctx) {
     const margin = revenue ? Math.round((net / revenue) * 100) + "%" : "—";
     const netCash = cashSales - cashExp;
 
-    const kpis = [["Revenue", money(revenue)], ["Gross profit", money(gross)], ["Expenses", money(totalExp)], ["Net profit", money(net)], ["Net margin", margin]];
-    current.title = "Financial report (P&L)"; current.kpis = kpis;
-    current.csv = [["Metric", "Amount"], ["Revenue", revenue.toFixed(2)], ["Cost of goods sold", cogs.toFixed(2)], ["Gross profit", gross.toFixed(2)], ["Total expenses", totalExp.toFixed(2)], ["Net profit", net.toFixed(2)], ["Outstanding credit (receivables)", receivables.toFixed(2)], ["Cash sales", cashSales.toFixed(2)], ["Cash expenses", cashExp.toFixed(2)], ["Net cash movement", netCash.toFixed(2)]];
+    const kpis = [[t("rep.revenue"), money(revenue)], [t("rep.grossProfit"), money(gross)], [t("rep.expenses"), money(totalExp)], [t("rep.netProfit"), money(net)], [t("rep.netMargin"), margin]];
+    current.title = t("rep.title") + " — " + t("rep.tabFinancial"); current.kpis = kpis;
+    current.csv = [[t("rep.metric"), t("rep.amount")], [t("rep.revenue"), revenue.toFixed(2)], [t("rep.cogs"), cogs.toFixed(2)], [t("rep.grossProfit"), gross.toFixed(2)], [t("rep.expenses"), totalExp.toFixed(2)], [t("rep.netProfit"), net.toFixed(2)], [t("rep.receivables"), receivables.toFixed(2)], [t("rep.cashSalesIn"), cashSales.toFixed(2)], [t("rep.cashExpOut"), cashExp.toFixed(2)], [t("rep.netCash"), netCash.toFixed(2)]];
 
-    const pl = table([{ label: "Metric", render: (r) => r[0] }, { label: "Amount", render: (r) => money(r[1]) }],
-      [["Revenue", revenue], ["Cost of goods sold", cogs], ["Gross profit", gross], ["Total expenses", -totalExp], ["Net profit", net], ["Outstanding credit", receivables]], {});
+    const pl = table([{ label: t("rep.metric"), render: (r) => r[0] }, { label: t("rep.amount"), render: (r) => money(r[1]) }],
+      [[t("rep.revenue"), revenue], [t("rep.cogs"), cogs], [t("rep.grossProfit"), gross], [t("rep.expenses"), -totalExp], [t("rep.netProfit"), net], [t("rep.receivables"), receivables]], {});
     const catRows = Object.entries(expByCat).sort((a, b) => b[1] - a[1]);
-    const expTable = table([{ label: "Category", render: (r) => r[0] }, { label: "Amount", render: (r) => money(r[1]) }], catRows, { empty: "No expenses in range." });
-    const cashTable = table([{ label: "Cash drawer", render: (r) => r[0] }, { label: "Amount", render: (r) => money(r[1]) }],
-      [["Cash sales (in)", cashSales], ["Cash expenses (out)", cashExp], ["Net cash movement", netCash]], {});
+    const expTable = table([{ label: t("rep.category"), render: (r) => r[0] }, { label: t("rep.amount"), render: (r) => money(r[1]) }], catRows, { empty: t("rep.noSalesRange") });
+    const cashTable = table([{ label: t("rep.cashRecon"), render: (r) => r[0] }, { label: t("rep.amount"), render: (r) => money(r[1]) }],
+      [[t("rep.cashSalesIn"), cashSales], [t("rep.cashExpOut"), cashExp], [t("rep.netCash"), netCash]], {});
 
     return el("div", { class: "space-y-5" }, [
       kpiRow(kpis),
-      sectionCard("Profit & Loss", pl),
-      el("div", { class: "grid gap-5 lg:grid-cols-2" }, [sectionCard("Expenses by category", expTable), sectionCard("Cash reconciliation", cashTable)]),
-      el("div", { class: "rounded-xl border border-line bg-white p-4 text-xs text-soft" }, "Cash reconciliation excludes opening balance and refunds (not tracked yet). Net cash movement = cash sales − cash expenses."),
+      sectionCard(t("rep.pl"), pl),
+      el("div", { class: "grid gap-5 lg:grid-cols-2" }, [sectionCard(t("rep.expByCategory"), expTable), sectionCard(t("rep.cashRecon"), cashTable)]),
+      el("div", { class: "rounded-xl border border-line bg-white p-4 text-xs text-soft" }, t("rep.cashNote")),
     ]);
   }
 
@@ -226,38 +206,44 @@ export default function render(outlet, ctx) {
     const rs = rangeSales();
     const by = {};
     for (const s of rs) {
-      const name = s.patientName || "Walk-in";
+      const name = s.patientName || t("dash.walkIn");
       by[name] = by[name] || { count: 0, spent: 0, credit: 0 };
       by[name].count += 1; by[name].spent += num(s.total);
       if ((s.paymentMethod || "") === "credit") by[name].credit += num(s.total);
     }
     const rows = Object.entries(by).sort((a, b) => b[1].spent - a[1].spent);
-    const kpis = [["Customers", String(rows.length)], ["Sales", String(rs.length)], ["Revenue", money(rows.reduce((a, r) => a + r[1].spent, 0))], ["Outstanding credit", money(rows.reduce((a, r) => a + r[1].credit, 0))]];
-    current.title = "Customers report"; current.kpis = kpis;
-    current.csv = [["Customer", "Purchases", "Total spent", "Outstanding credit"], ...rows.map(([n, v]) => [n, v.count, v.spent.toFixed(2), v.credit.toFixed(2)])];
+    const kpis = [[t("rep.customers"), String(rows.length)], [t("rep.sales"), String(rs.length)], [t("rep.revenue"), money(rows.reduce((a, r) => a + r[1].spent, 0))], [t("rep.receivables"), money(rows.reduce((a, r) => a + r[1].credit, 0))]];
+    current.title = t("rep.title") + " — " + t("rep.tabCustomers"); current.kpis = kpis;
+    current.csv = [[t("rep.customer"), t("rep.purchasesCount"), t("rep.totalSpent"), t("rep.credit")], ...rows.map(([n, v]) => [n, v.count, v.spent.toFixed(2), v.credit.toFixed(2)])];
 
     return el("div", { class: "space-y-5" }, [
       kpiRow(kpis),
-      sectionCard("Top customers", table([
-        { label: "Customer", render: (r) => r[0] },
-        { label: "Purchases", render: (r) => String(r[1].count) },
-        { label: "Total spent", render: (r) => money(r[1].spent) },
-        { label: "Credit", render: (r) => money(r[1].credit) },
-      ], rows, { empty: "No customer sales in this range." })),
+      sectionCard(t("rep.topCustomers"), table([
+        { label: t("rep.customer"), render: (r) => r[0] },
+        { label: t("rep.purchasesCount"), render: (r) => String(r[1].count) },
+        { label: t("rep.totalSpent"), render: (r) => money(r[1].spent) },
+        { label: t("rep.credit"), render: (r) => money(r[1].credit) },
+      ], rows, { empty: t("rep.noCustomerSales") })),
     ]);
   }
 
   function purchasesTab() {
-    current.title = "Purchases"; current.kpis = []; current.csv = [];
+    current.title = t("rep.tabPurchases"); current.kpis = []; current.csv = [];
     return el("div", { class: "card" }, [
-      el("p", { class: "font-semibold text-ink" }, "Purchases & supplier payables"),
-      el("p", { class: "mt-1 text-sm text-soft" }, "This needs purchase-order and supplier-payment data the app doesn't capture yet. Once purchase recording is added (received stock, supplier invoices, payments), this report will show purchase history by supplier, per-product purchase trends, and a payables ledger."),
+      el("p", { class: "font-semibold text-ink" }, t("rep.purchases")),
+      el("p", { class: "mt-1 text-sm text-soft" }, t("rep.purchasesNote")),
     ]);
   }
 
   const TAB_FNS = { sales: salesTab, inventory: inventoryTab, expiry: expiryTab, purchases: purchasesTab, financial: financialTab, customers: customersTab };
+  const TAB_LABEL = { sales: "rep.tabSales", inventory: "rep.tabInventory", expiry: "rep.tabExpiry", purchases: "rep.tabPurchases", financial: "rep.tabFinancial", customers: "rep.tabCustomers" };
+  const PRESETS = [
+    { value: "today", label: t("rep.presetToday") }, { value: "week", label: t("rep.presetWeek") },
+    { value: "month", label: t("rep.presetMonth") }, { value: "lastmonth", label: t("rep.presetLastMonth") },
+    { value: "year", label: t("rep.presetYear") }, { value: "all", label: t("rep.presetAll") },
+    { value: "custom", label: t("rep.presetCustom") },
+  ];
 
-  /* ---------- export / print ---------- */
   function doExport() {
     if (!current.csv || current.csv.length <= 1) return;
     downloadCSV(`${(current.title || "report").toLowerCase().replace(/\s+/g, "-")}.csv`, current.csv);
@@ -272,43 +258,38 @@ export default function render(outlet, ctx) {
     printContent(current.title || "Report", `<h1>${esc(current.title || "Report")}</h1><div class="sub">${esc(sub)}</div>${kpiHtml}<table>${thead}${tbody}</table>`);
   }
 
-  /* ---------- shell ---------- */
   function header() {
-    const presetSel = filterSelect(PRESETS, preset, (v) => { preset = v; paint(); }, "Date range");
+    const presetSel = filterSelect(PRESETS, preset, (v) => { preset = v; paint(); }, t("rep.title"));
     const controls = [presetSel];
     if (preset === "custom") {
       fromPick = shamsiDate(fromPick && fromPick.value());
       toPick = shamsiDate(toPick && toPick.value());
       controls.push(el("div", { class: "flex flex-wrap items-center gap-2" }, [
-        el("span", { class: "text-xs text-soft" }, "From"), fromPick.node,
-        el("span", { class: "text-xs text-soft" }, "To"), toPick.node,
-        el("button", { class: "btn-ghost", onclick: () => paint() }, "Apply"),
+        el("span", { class: "text-xs text-soft" }, t("rep.from")), fromPick.node,
+        el("span", { class: "text-xs text-soft" }, t("rep.to")), toPick.node,
+        el("button", { class: "btn-ghost", onclick: () => paint() }, t("common.apply")),
       ]));
     }
     const exportBtn = el("button", { class: "btn-ghost", onclick: doExport }, [
-      el("span", { html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>' }), "CSV",
+      el("span", { html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>' }), t("common.export"),
     ]);
     const printBtn = el("button", { class: "btn-ghost", onclick: doPrint }, [
-      el("span", { html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5h-2M8 14h8v7H8z"/></svg>' }), "Print / PDF",
+      el("span", { html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5h-2M8 14h8v7H8z"/></svg>' }), t("common.print"),
     ]);
     return el("div", { class: "flex flex-wrap items-center justify-between gap-3" }, [
-      el("h2", { class: "text-lg font-bold text-ink" }, "Reports"),
+      el("h2", { class: "text-lg font-bold text-ink" }, t("rep.title")),
       el("div", { class: "flex flex-wrap items-center gap-2" }, [...controls, exportBtn, printBtn]),
     ]);
   }
   function tabBar() {
-    return el("div", { class: "flex flex-wrap gap-1 border-b border-line" }, TABS.map(([key, label]) => {
-      const b = el("button", {
-        class: "rounded-t-lg px-3 py-2 text-sm font-semibold transition " + (tab === key ? "border-b-2 border-brand-500 text-brand-700" : "text-soft hover:text-ink"),
-        onclick: () => { tab = key; paint(); },
-      }, label);
-      return b;
-    }));
+    return el("div", { class: "flex flex-wrap gap-1 border-b border-line" }, TABS.map((key) => el("button", {
+      class: "rounded-t-lg px-3 py-2 text-sm font-semibold transition " + (tab === key ? "border-b-2 border-brand-500 text-brand-700" : "text-soft hover:text-ink"),
+      onclick: () => { tab = key; paint(); },
+    }, t(TAB_LABEL[key]))));
   }
 
   function paint() {
-    if (!drugs || !sales) return;
-    const body = TAB_FNS[tab]();
-    root.replaceChildren(header(), tabBar(), body);
+    if (!drugs || !sales || !expenses) return;
+    root.replaceChildren(header(), tabBar(), TAB_FNS[tab]());
   }
 }

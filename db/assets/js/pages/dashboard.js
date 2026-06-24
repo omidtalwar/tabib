@@ -6,6 +6,7 @@
  */
 import { watch, toDate } from "../repo.js";
 import { el, money, fmtDate, daysUntil, sparkline, barChart, loading } from "../ui.js";
+import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
@@ -38,7 +39,7 @@ export default function render(outlet, ctx) {
     const arrow = flat ? "" : up ? "▲" : "▼";
     const trend = change == null ? null : el("span", {
       class: "inline-flex items-center gap-1 text-xs font-semibold " + (flat ? "text-soft" : good ? "text-ok" : "text-danger"),
-    }, `${arrow} ${Math.abs(change)}% vs yest.`);
+    }, `${arrow} ${Math.abs(change)}% ${t("dash.vsYest")}`);
     return el("div", { class: "kpi" }, [
       el("span", { class: "kpi-label" }, label),
       el("div", { class: "flex items-end justify-between gap-2" }, [
@@ -141,58 +142,58 @@ export default function render(outlet, ctx) {
 
     /* ----- build sections ----- */
     const name = (ctx.session.displayName || (ctx.session.email || "").split("@")[0] || "there").split(" ")[0];
-    const greet = now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
+    const greet = now.getHours() < 12 ? t("dash.greetMorning") : now.getHours() < 17 ? t("dash.greetAfternoon") : t("dash.greetEvening");
     const summaryBits = [];
-    if (expWeek) summaryBits.push(`${expWeek} item${expWeek > 1 ? "s" : ""} expiring this week`);
-    if (out.length) summaryBits.push(`${out.length} out of stock`);
-    if (low.length) summaryBits.push(`${low.length} low on stock`);
-    const summary = summaryBits.length ? summaryBits.join(" · ") : "everything looks healthy today";
+    if (expWeek) summaryBits.push(t("dash.bitExpiring", { n: expWeek }));
+    if (out.length) summaryBits.push(t("dash.bitOut", { n: out.length }));
+    if (low.length) summaryBits.push(t("dash.bitLow", { n: low.length }));
+    const summaryLine = summaryBits.length ? t("dash.youHave", { x: summaryBits.join(" · ") }) : t("dash.allHealthy");
 
     const greeting = el("div", {}, [
       el("h1", { class: "text-xl font-bold text-ink" }, `${greet}, ${name[0].toUpperCase() + name.slice(1)}`),
-      el("p", { class: "mt-0.5 text-sm text-soft" }, `You have ${summary}.`),
+      el("p", { class: "mt-0.5 text-sm text-soft" }, summaryLine),
     ]);
 
     const kpis = el("div", { class: "grid grid-cols-2 gap-3 lg:grid-cols-6" }, [
-      kpiCard({ label: "Today's sales", value: money(todayS.revenue), change: pct(todayS.revenue, yestS.revenue), spark: days7.map((x) => x.revenue), sparkColor: "#0EA59B" }),
-      kpiCard({ label: "Today's profit", value: money(todayS.profit), change: pct(todayS.profit, yestS.profit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }),
-      kpiCard({ label: "Invoices", value: String(todayS.count), change: pct(todayS.count, yestS.count) }),
-      kpiCard({ label: "Cash (net)", value: money(cashDrawer) }),
-      kpiCard({ label: "Stock value", value: money(stockValue) }),
-      kpiCard({ label: "Today's expenses", value: money(expToday), change: pct(expToday, expYest), goodWhenUp: false, spark: expDays7, sparkColor: "#E8554E" }),
+      kpiCard({ label: t("dash.kpiSales"), value: money(todayS.revenue), change: pct(todayS.revenue, yestS.revenue), spark: days7.map((x) => x.revenue), sparkColor: "#0EA59B" }),
+      kpiCard({ label: t("dash.kpiProfit"), value: money(todayS.profit), change: pct(todayS.profit, yestS.profit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }),
+      kpiCard({ label: t("dash.kpiInvoices"), value: String(todayS.count), change: pct(todayS.count, yestS.count) }),
+      kpiCard({ label: t("dash.kpiCash"), value: money(cashDrawer) }),
+      kpiCard({ label: t("dash.kpiStock"), value: money(stockValue) }),
+      kpiCard({ label: t("dash.kpiExpenses"), value: money(expToday), change: pct(expToday, expYest), goodWhenUp: false, spark: expDays7, sparkColor: "#E8554E" }),
     ]);
 
     const alerts = el("div", { class: "flex flex-wrap items-center gap-2" }, [
-      el("span", { class: "text-xs font-semibold uppercase tracking-wide text-soft" }, "Needs attention"),
-      alertPill(expiring.length, "expiring ≤30d", "orange", "inventory"),
-      alertPill(low.length, "low stock", "amber", "inventory"),
-      alertPill(out.length, "out of stock", "red", "inventory"),
-      alertPill(expired.length, "expired", "red", "inventory"),
-      creditOutstanding > 0 ? alertPill(Math.round(creditOutstanding), "credit due", "purple", "reports") : null,
+      el("span", { class: "text-xs font-semibold uppercase tracking-wide text-soft" }, t("dash.needsAttention")),
+      alertPill(expiring.length, t("dash.alertExpiring"), "orange", "inventory"),
+      alertPill(low.length, t("dash.alertLow"), "amber", "inventory"),
+      alertPill(out.length, t("dash.alertOut"), "red", "inventory"),
+      alertPill(expired.length, t("dash.alertExpired"), "red", "inventory"),
+      creditOutstanding > 0 ? alertPill(Math.round(creditOutstanding), t("dash.alertCredit"), "purple", "reports") : null,
     ]);
 
     const charts = el("div", { class: "grid gap-5 lg:grid-cols-2" }, [
-      el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, "Sales — last 7 days"), barChart(chart7)]),
-      el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, "Top products (this week)"),
-        topProducts.length ? barChart(topProducts.map(([l, v]) => ({ label: l.slice(0, 8), value: v })), { color: "#7C5CFC" }) : el("p", { class: "text-sm text-soft" }, "No sales this week.")]),
+      el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, t("dash.sales7")), barChart(chart7)]),
+      el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, t("dash.topProducts")),
+        topProducts.length ? barChart(topProducts.map(([l, v]) => ({ label: l.slice(0, 8), value: v })), { color: "#7C5CFC" }) : el("p", { class: "text-sm text-soft" }, t("dash.noSalesWeek"))]),
     ]);
 
     const recent = [...state.sales].sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0)).slice(0, 6)
-      .map((s) => rowEl(s.patientName || "Walk-in", money(s.total), `${s.receiptNumber || ""} · ${s.staffName || ""}`.replace(/^ · | · $/g, "")));
-    const topList = topProducts.slice(0, 6).map(([n, q]) => rowEl(n, `${q} sold`));
+      .map((s) => rowEl(s.patientName || t("dash.walkIn"), money(s.total), `${s.receiptNumber || ""} · ${s.staffName || ""}`.replace(/^ · | · $/g, "")));
+    const topList = topProducts.slice(0, 6).map(([n, q]) => rowEl(n, t("dash.sold", { n: q })));
     const expSoon = expiring.slice(0, 6).map((x) => rowEl(x.d.name || "—", `${x.n}d`, fmtDate(toDate(x.d.expiryDate))));
 
     const lists = el("div", { class: "grid gap-5 lg:grid-cols-3" }, [
-      listCard("Recent sales", recent, { empty: "No sales yet.", action: { label: "All", onClick: () => go("sales") } }),
-      listCard("Top selling (this week)", topList, { empty: "No sales this week." }),
-      listCard("Expiring soon", expSoon, { empty: "Nothing expiring soon.", action: { label: "Inventory", onClick: () => go("inventory") } }),
+      listCard(t("dash.recentSales"), recent, { empty: t("dash.noSales"), action: { label: t("dash.viewAll"), onClick: () => go("sales") } }),
+      listCard(t("dash.topSelling"), topList, { empty: t("dash.noSalesWeek") }),
+      listCard(t("dash.expiringSoon"), expSoon, { empty: t("dash.nothingExpiring"), action: { label: t("nav.inventory"), onClick: () => go("inventory") } }),
     ]);
 
     const quick = el("div", { class: "card flex flex-wrap gap-2" }, [
-      quickBtn("New sale", "sales", '<path d="M12 5v14M5 12h14"/>', "#0EA59B"),
-      quickBtn("Add stock", "drugs", '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', "#2F6FED"),
-      quickBtn("Add expense", "expenses", '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', "#E8554E"),
-      quickBtn("Reports", "reports", '<path d="M5 20V10M12 20V4M19 20v-7"/>', "#6C7B7A"),
+      quickBtn(t("dash.quickNewSale"), "sales", '<path d="M12 5v14M5 12h14"/>', "#0EA59B"),
+      quickBtn(t("dash.quickAddStock"), "drugs", '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', "#2F6FED"),
+      quickBtn(t("dash.quickAddExpense"), "expenses", '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', "#E8554E"),
+      quickBtn(t("dash.quickReports"), "reports", '<path d="M5 20V10M12 20V4M19 20v-7"/>', "#6C7B7A"),
     ]);
 
     root.replaceChildren(greeting, kpis, alerts, charts, lists, quick);

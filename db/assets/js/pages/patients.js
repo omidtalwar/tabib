@@ -1,6 +1,7 @@
-/** Patients — live list + create/edit. Fields mirror patient_isar.dart. */
+/** Patients — live list + create/edit. */
 import { watch, create, update, toIso, toDate } from "../repo.js";
 import { el, table, searchInput, toolbar, fmtDate, loading, formModal, toast, iconButton, ICON } from "../ui.js";
+import { t } from "../i18n.js";
 
 const GENDERS = ["Male", "Female", "Other"];
 const BLOOD = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -11,21 +12,21 @@ export default function render(outlet, ctx) {
 
   async function form(existing) {
     const ok = await formModal({
-      title: existing ? "Edit patient" : "Add patient",
+      title: existing ? t("pat.editTitle") : t("pat.addTitle"),
       values: existing
         ? { ...existing, allergies: (existing.allergies || []).join(", ") }
         : { gender: "Other" },
       fields: [
-        { name: "fullName", label: "Full name", required: true },
-        { name: "phone", label: "Phone", type: "tel" },
-        { name: "gender", label: "Gender", type: "select", options: GENDERS, default: "Other" },
-        { name: "dateOfBirth", label: "Date of birth", type: "jdate" },
-        { name: "bloodGroup", label: "Blood group", type: "select", options: BLOOD.map((b) => ({ value: b, label: b || "—" })) },
-        { name: "emergencyContact", label: "Emergency contact", type: "tel" },
-        { name: "insuranceId", label: "Insurance ID" },
-        { name: "address", label: "Address", full: true },
-        { name: "allergies", label: "Allergies", help: "Comma-separated", full: true },
-        { name: "notes", label: "Notes", type: "textarea", full: true },
+        { name: "fullName", label: t("pat.fName"), required: true },
+        { name: "phone", label: t("pat.fPhone"), type: "tel" },
+        { name: "gender", label: t("pat.fGender"), type: "select", options: GENDERS, default: "Other" },
+        { name: "dateOfBirth", label: t("pat.fDob"), type: "jdate" },
+        { name: "bloodGroup", label: t("pat.fBlood"), type: "select", options: BLOOD.map((b) => ({ value: b, label: b || "—" })) },
+        { name: "emergencyContact", label: t("pat.fEmergency"), type: "tel" },
+        { name: "insuranceId", label: t("pat.fInsurance") },
+        { name: "address", label: t("pat.fAddress"), full: true },
+        { name: "allergies", label: t("pat.fAllergies"), help: t("pat.fAllergiesHelp"), full: true },
+        { name: "notes", label: t("pat.fNotes"), type: "textarea", full: true },
       ],
       onSubmit: async (d) => {
         const payload = {
@@ -38,13 +39,13 @@ export default function render(outlet, ctx) {
         else await create(pid, "patients", { ...payload, createdAt: new Date().toISOString() });
       },
     });
-    if (ok) toast(existing ? "Patient updated" : "Patient added", { type: "ok" });
+    if (ok) toast(existing ? t("pat.updated") : t("pat.added"), { type: "ok" });
   }
 
-  const addBtn = el("button", { class: "btn-primary", onclick: () => form(null) }, "+ Add patient");
+  const addBtn = el("button", { class: "btn-primary", onclick: () => form(null) }, t("pat.add"));
   const host = el("div", {}, loading());
   outlet.append(el("div", { class: "space-y-5" }, [
-    toolbar("Patients", el("div", { class: "flex gap-2" }, [searchInput("Search name or phone…", (v) => { q = v; paint(); }), addBtn])),
+    toolbar(t("pat.title"), el("div", { class: "flex flex-wrap gap-2" }, [searchInput(t("pat.searchPh"), (v) => { q = v; paint(); }), addBtn])),
     host,
   ]));
 
@@ -54,14 +55,14 @@ export default function render(outlet, ctx) {
       .filter((p) => !q || [p.fullName, p.phone].some((x) => (x || "").toLowerCase().includes(q)))
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
     host.replaceChildren(table([
-      { label: "Name", render: (p) => p.fullName || "—" },
-      { label: "Phone", render: (p) => p.phone || "—" },
-      { label: "Gender", render: (p) => p.gender || "—" },
-      { label: "Blood", render: (p) => p.bloodGroup || "—" },
-      { label: "Allergies", render: (p) => Array.isArray(p.allergies) && p.allergies.length ? p.allergies.join(", ") : "—" },
-      { label: "Added", render: (p) => fmtDate(toDate(p.createdAt)) },
-      { label: "", render: (p) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(p), { color: "blue" })) },
-    ], filtered, { empty: "No patients yet", emptyHint: "Add your first patient with the button above." }));
+      { label: t("pat.colName"), render: (p) => p.fullName || "—" },
+      { label: t("pat.colPhone"), render: (p) => p.phone || "—" },
+      { label: t("pat.colGender"), render: (p) => p.gender || "—" },
+      { label: t("pat.colBlood"), render: (p) => p.bloodGroup || "—" },
+      { label: t("pat.colAllergies"), render: (p) => Array.isArray(p.allergies) && p.allergies.length ? p.allergies.join(", ") : "—" },
+      { label: t("pat.colAdded"), render: (p) => fmtDate(toDate(p.createdAt)) },
+      { label: "", render: (p) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, t("common.edit"), () => form(p), { color: "blue" })) },
+    ], filtered, { empty: t("pat.empty"), emptyHint: t("pat.emptyHint") }));
   }
 
   return watch(pid, "patients", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });

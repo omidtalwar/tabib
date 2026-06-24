@@ -1,9 +1,7 @@
-/** Sales — history + POS. New sale commits the sale and decrements each line's
- * stock as one atomic, offline-capable writeBatch (commitSale). Oversell is
- * blocked against cached stock. Shapes mirror sale_isar.dart (itemsJson string,
- * ISO createdAt, RCP-{millis} receipt). */
+/** Sales — history + POS (atomic, offline-capable sale via commitSale). */
 import { watch, commitSale, uuid, toDate } from "../repo.js";
-import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog } from "../ui.js";
+import { el, table, searchInput, toolbar, money, fmtDate, loading, toast, confirmDialog } from "../ui.js";
+import { t } from "../i18n.js";
 
 const PAYMENTS = ["cash", "card", "insurance", "credit"];
 
@@ -11,7 +9,7 @@ export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let sales = null, drugs = [];
   let mode = "history";
-  const cart = []; // { drugId, drugName, unitPrice, quantity, stock }
+  const cart = [];
   let patientName = "", paymentMethod = "cash", discountPercent = 0, insuranceCoverage = 0;
 
   const root = el("div", { class: "space-y-5" });
@@ -29,10 +27,10 @@ export default function render(outlet, ctx) {
     for (const c of cart) {
       const d = drugs.find((x) => (x.firestoreId || x.id) === c.drugId);
       const stock = d ? (d.stockQuantity ?? 0) : 0;
-      if (c.quantity > stock) return toast(`Not enough stock for ${c.drugName} (have ${stock})`, { type: "error" });
+      if (c.quantity > stock) return toast(t("sales.notEnough", { name: c.drugName, n: stock }), { type: "error" });
     }
     const controlled = cart.filter((c) => { const d = drugs.find((x) => (x.firestoreId || x.id) === c.drugId); return d && d.isControlled; });
-    if (controlled.length && !(await confirmDialog(`This sale includes controlled drug(s): ${controlled.map((c) => c.drugName).join(", ")}. Continue?`, { confirmLabel: "Sell" }))) return;
+    if (controlled.length && !(await confirmDialog(t("sales.controlledWarn", { names: controlled.map((c) => c.drugName).join(", ") }), { confirmLabel: t("sales.sell") }))) return;
 
     const { subtotal, discountAmount, total } = totals();
     const items = cart.map((c) => ({ drugId: c.drugId, drugName: c.drugName, quantity: c.quantity, unitPrice: c.unitPrice, subtotal: c.unitPrice * c.quantity }));
@@ -47,17 +45,17 @@ export default function render(outlet, ctx) {
     };
     try {
       await commitSale(pid, saleId, payload, items);
-      toast(`Sale recorded — ${money(total)}`, { type: "ok" });
+      toast(t("sales.recorded", { total: money(total) }), { type: "ok" });
       cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0;
       mode = "history"; paint();
     } catch (e) {
-      toast(e.message || "Couldn't record the sale", { type: "error" });
+      toast(e.message || t("sales.couldnt"), { type: "error" });
     }
   }
 
   function posView() {
     const results = el("div", { class: "mt-2 grid gap-1" });
-    const search = searchInput("Search a drug to add…", (v) => {
+    const search = searchInput(t("sales.posSearch"), (v) => {
       results.replaceChildren();
       if (!v) return;
       drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(v)).slice(0, 8)
@@ -66,7 +64,7 @@ export default function render(outlet, ctx) {
           onclick: () => addToCart(d),
         }, [
           el("span", {}, [el("span", { class: "font-semibold text-ink" }, d.name), el("span", { class: "ms-2 text-soft" }, money(d.sellingPrice))]),
-          el("span", { class: "text-xs text-soft" }, `stock ${d.stockQuantity ?? 0}`),
+          el("span", { class: "text-xs text-soft" }, `${t("sales.stock")} ${d.stockQuantity ?? 0}`),
         ])));
     });
 
@@ -81,9 +79,9 @@ export default function render(outlet, ctx) {
       drawCart();
     }
     function drawCart() {
-      if (!cart.length) { cartHost.replaceChildren(el("p", { class: "text-sm text-soft py-6 text-center" }, "Cart is empty — search and add drugs above.")); totalsHost.replaceChildren(); return; }
+      if (!cart.length) { cartHost.replaceChildren(el("p", { class: "text-sm text-soft py-6 text-center" }, t("sales.cartEmpty"))); totalsHost.replaceChildren(); return; }
       cartHost.replaceChildren(el("table", { class: "table" }, [
-        el("thead", {}, el("tr", {}, ["Drug", "Qty", "Price", "Subtotal", ""].map((h) => el("th", {}, h)))),
+        el("thead", {}, el("tr", {}, [t("sales.cDrug"), t("sales.cQty"), t("sales.cPrice"), t("sales.cSubtotal"), ""].map((h) => el("th", {}, h)))),
         el("tbody", {}, cart.map((c, i) => el("tr", {}, [
           el("td", {}, c.drugName),
           el("td", {}, el("input", { type: "number", min: "1", value: String(c.quantity), class: "field w-20 py-1",
@@ -93,27 +91,27 @@ export default function render(outlet, ctx) {
           el("td", {}, el("button", { class: "btn-ghost px-2 py-1 text-xs", onclick: () => { cart.splice(i, 1); drawCart(); } }, "✕")),
         ]))),
       ]));
-      const t = totals();
+      const tt = totals();
       totalsHost.replaceChildren(el("div", { class: "mt-4 grid gap-3 sm:grid-cols-2" }, [
         el("div", { class: "grid gap-2" }, [
-          labeled("Patient (optional)", el("input", { class: "field", value: patientName, oninput: (e) => patientName = e.target.value })),
-          labeled("Payment", select(PAYMENTS, paymentMethod, (v) => paymentMethod = v)),
-          labeled("Discount %", el("input", { class: "field", type: "number", min: "0", value: String(discountPercent), oninput: (e) => { discountPercent = e.target.value; drawCart(); } })),
-          labeled("Insurance covers", el("input", { class: "field", type: "number", min: "0", value: String(insuranceCoverage), oninput: (e) => { insuranceCoverage = e.target.value; drawCart(); } })),
+          labeled(t("sales.patientOpt"), el("input", { class: "field", value: patientName, oninput: (e) => patientName = e.target.value })),
+          labeled(t("sales.payment"), select(PAYMENTS, paymentMethod, (v) => paymentMethod = v)),
+          labeled(t("sales.discountPct"), el("input", { class: "field", type: "number", min: "0", value: String(discountPercent), oninput: (e) => { discountPercent = e.target.value; drawCart(); } })),
+          labeled(t("sales.insurance"), el("input", { class: "field", type: "number", min: "0", value: String(insuranceCoverage), oninput: (e) => { insuranceCoverage = e.target.value; drawCart(); } })),
         ]),
         el("div", { class: "rounded-xl bg-brand-50 p-4 space-y-1.5 text-sm" }, [
-          row("Subtotal", money(t.subtotal)),
-          row("Discount", "− " + money(t.discountAmount)),
-          row("Insurance", "− " + money(Number(insuranceCoverage) || 0)),
-          el("div", { class: "flex justify-between border-t border-brand-200 pt-2 text-base font-bold text-ink" }, [el("span", {}, "Total"), el("span", {}, money(t.total))]),
-          el("button", { class: "btn-primary w-full mt-2", onclick: confirmSale }, "Confirm sale"),
+          row(t("sales.subtotal"), money(tt.subtotal)),
+          row(t("sales.discount"), "− " + money(tt.discountAmount)),
+          row(t("sales.insuranceRow"), "− " + money(Number(insuranceCoverage) || 0)),
+          el("div", { class: "flex justify-between border-t border-brand-200 pt-2 text-base font-bold text-ink" }, [el("span", {}, t("sales.total")), el("span", {}, money(tt.total))]),
+          el("button", { class: "btn-primary w-full mt-2", onclick: confirmSale }, t("sales.confirm")),
         ]),
       ]));
     }
     drawCart();
 
     return el("div", { class: "card" }, [
-      el("p", { class: "font-semibold text-ink" }, "New sale"),
+      el("p", { class: "font-semibold text-ink" }, t("sales.posTitle")),
       search, results, el("div", { class: "mt-4 overflow-x-auto" }, cartHost), totalsHost,
     ]);
   }
@@ -121,26 +119,25 @@ export default function render(outlet, ctx) {
   function historyView() {
     const rows = (sales || []).slice().sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
     return table([
-      { label: "Receipt", render: (s) => s.receiptNumber || (s.firestoreId || "").slice(0, 8) || "—" },
-      { label: "Patient", render: (s) => s.patientName || "—" },
-      { label: "Items", render: (s) => { try { return String(JSON.parse(s.itemsJson || "[]").length); } catch { return "0"; } } },
-      { label: "Payment", render: (s) => s.paymentMethod || "—" },
-      { label: "Total", render: (s) => money(s.total) },
-      { label: "When", render: (s) => fmtDate(toDate(s.createdAt)) },
-    ], rows, { empty: "No sales yet", emptyHint: "Start a new sale with the button above." });
+      { label: t("sales.colReceipt"), render: (s) => s.receiptNumber || (s.firestoreId || "").slice(0, 8) || "—" },
+      { label: t("sales.colPatient"), render: (s) => s.patientName || "—" },
+      { label: t("sales.colItems"), render: (s) => { try { return String(JSON.parse(s.itemsJson || "[]").length); } catch { return "0"; } } },
+      { label: t("sales.colPayment"), render: (s) => s.paymentMethod || "—" },
+      { label: t("sales.colTotal"), render: (s) => money(s.total) },
+      { label: t("sales.colWhen"), render: (s) => fmtDate(toDate(s.createdAt)) },
+    ], rows, { empty: t("sales.empty"), emptyHint: t("sales.emptyHint") });
   }
 
   function paint() {
     const toggle = mode === "pos"
-      ? el("button", { class: "btn-ghost", onclick: () => { mode = "history"; paint(); } }, "← Back to history")
-      : el("button", { class: "btn-primary", onclick: () => { mode = "pos"; paint(); } }, "+ New sale");
+      ? el("button", { class: "btn-ghost", onclick: () => { mode = "history"; paint(); } }, t("sales.back"))
+      : el("button", { class: "btn-primary", onclick: () => { mode = "pos"; paint(); } }, "+ " + t("sales.newSale"));
     root.replaceChildren(
-      toolbar(mode === "pos" ? "New sale" : "Sales", toggle),
+      toolbar(mode === "pos" ? t("sales.posTitle") : t("sales.title"), toggle),
       mode === "pos" ? posView() : (sales == null ? loading() : historyView())
     );
   }
 
-  // helpers
   function labeled(label, node) { return el("label", { class: "block" }, [el("span", { class: "label" }, label), node]); }
   function row(l, r) { return el("div", { class: "flex justify-between text-soft" }, [el("span", {}, l), el("span", {}, r)]); }
   function select(opts, val, on) {
