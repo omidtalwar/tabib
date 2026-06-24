@@ -32,15 +32,8 @@
       <div class="side-profile">
         <div id="avatar" class="side-avatar">P</div>
         <div class="min-w-0">
-          <p id="profileName" class="side-name truncate">—</p>
-          <p id="profileEmail" class="side-email truncate">—</p>
-        </div>
-      </div>
-      <div class="px-3 mb-1">
-        <p class="px-2 text-[11px] font-semibold uppercase tracking-wide text-soft">Pharmacy</p>
-        <div class="flex items-center gap-2 px-2 py-1">
-          <img src="../assets/icon.png" alt="" class="h-5 w-5 flex-none rounded" />
-          <span id="pharmacyName" class="truncate text-xs font-semibold text-ink">—</span>
+          <p id="pharmacyName" class="side-name truncate">—</p>
+          <p id="sideRole" class="side-email truncate">Pharmacy</p>
         </div>
       </div>
       <nav id="nav" class="flex flex-col gap-0.5 px-3 pb-4"></nav>
@@ -48,14 +41,18 @@
 
     <!-- Main -->
     <div class="flex min-h-screen flex-col">
-      <header class="flex items-center justify-between gap-3 border-b border-line bg-white px-5 py-3">
+      <header class="flex items-center justify-between gap-3 border-b border-line bg-white px-5 py-2.5">
         <h1 id="pageTitle" class="text-lg font-bold text-ink">Dashboard</h1>
-        <div class="flex items-center gap-3">
-          <span id="syncDot" class="inline-flex items-center gap-1.5 text-xs font-semibold text-soft">
+        <div class="flex items-center gap-2.5">
+          <div id="switcherHost"></div>
+          <span id="syncDot" class="hidden items-center gap-1.5 text-xs font-semibold text-soft sm:inline-flex">
             <span class="h-2 w-2 rounded-full bg-ok"></span><span id="syncText">Online</span>
           </span>
+          <div class="hidden items-center gap-2 rounded-full border border-line bg-white py-1 pe-3 ps-1 sm:flex">
+            <span id="headerAvatar" class="grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold text-white" style="background-image:linear-gradient(135deg,#26b3a6,#0A7F77)">P</span>
+            <span id="userEmail" class="max-w-[200px] truncate text-xs font-medium text-ink"></span>
+          </div>
           <button id="rtlToggle" class="btn-ghost px-3 py-1.5 text-xs" title="Toggle direction">RTL</button>
-          <span id="userEmail" class="hidden sm:inline text-xs text-soft"></span>
           <button id="logoutBtn" class="btn-ghost px-3 py-1.5 text-xs">Sign out</button>
         </div>
       </header>
@@ -119,13 +116,12 @@
       }
       setActivePharmacy(active);
 
-      // Profile header (Win11-style): avatar initial + name + email.
+      // Avatars (sidebar shows pharmacy; header shows the user).
       const email = session.email || "";
-      const namePart = (email.split("@")[0] || "User").replace(/[._]/g, " ");
-      const display = namePart.replace(/\b\w/g, (c) => c.toUpperCase());
-      document.getElementById("profileName").textContent = display;
-      document.getElementById("profileEmail").textContent = email;
-      document.getElementById("avatar").textContent = (namePart[0] || "P").toUpperCase();
+      const initial = (email[0] || "P").toUpperCase();
+      document.getElementById("avatar").textContent = initial;
+      document.getElementById("headerAvatar").textContent = initial;
+      document.getElementById("sideRole").textContent = session.role === "admin" ? "Admin" : "Pharmacy";
 
       // Build sidebar nav (colored icon tiles).
       const nav = document.getElementById("nav");
@@ -140,10 +136,10 @@
         links[page] = a;
       }
 
-      // Pharmacy switcher (shown only when the owner has more than one).
+      // Pharmacy switcher in the header (only when the owner has more than one).
       if (owned.length > 1) {
         const sel = document.createElement("select");
-        sel.className = "mx-3 mb-2 field py-1.5 text-xs";
+        sel.className = "rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-ink";
         sel.setAttribute("aria-label", "Active pharmacy");
         for (const o of owned) {
           const opt = document.createElement("option");
@@ -152,7 +148,7 @@
           sel.append(opt);
         }
         sel.addEventListener("change", () => { setActivePharmacy(sel.value); location.reload(); });
-        nav.parentNode.insertBefore(sel, nav);
+        document.getElementById("switcherHost").append(sel);
       }
 
       document.getElementById("userEmail").textContent = session.email || "";
