@@ -2,7 +2,7 @@
 import { terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { db } from "../firebase.js";
 import { watch, put, callFn } from "../repo.js";
-import { el, table, confirmDialog, toast, formModal, badge, loading } from "../ui.js";
+import { el, table, confirmDialog, toast, formModal, badge, loadingSpinner } from "../ui.js";
 import { t } from "../i18n.js";
 
 async function resetLocalCache() {
@@ -38,7 +38,7 @@ export default function render(outlet, ctx) {
   // Staff management — admins only.
   if (isAdmin) {
     const pid = ctx.pharmacyId;
-    const staffHost = el("div", {}, loading());
+    const staffHost = el("div", {}, loadingSpinner());
     async function invite() {
       const ok = await formModal({
         title: t("stf.invite"),

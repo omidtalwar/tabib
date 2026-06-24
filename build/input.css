@@ -126,3 +126,15 @@
 }
 .fab.show .fab-label, .fab:hover .fab-label { max-width: 12rem; opacity: 1; padding-inline-end: 1.1rem; padding-inline-start: .15rem; }
 @media (prefers-reduced-motion: reduce) { .fab, .fab-label { transition: none; } }
+
+/* ---- Shimmer skeletons + boot splash ---- */
+.sk { position: relative; overflow: hidden; border-radius: .5rem; background: rgba(108,123,122,.18); }
+.sk::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
+  animation: sk-sweep 1.4s infinite;
+}
+@keyframes sk-sweep { 100% { transform: translateX(100%); } }
+@keyframes boot-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.boot-float { animation: boot-float 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .sk::after, .boot-float { animation: none; } }

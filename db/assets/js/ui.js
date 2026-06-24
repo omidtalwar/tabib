@@ -429,9 +429,21 @@ export function toolbar(title, right) {
 }
 
 /* Loading + error helpers for live views. */
-/** Centered spinner + text for data loading. */
-export function loading(text) {
-  return el("div", { class: "flex flex-col items-center justify-center gap-3 py-16" }, [
+/** Shimmer skeleton placeholder while a page's data loads. */
+export function loading() {
+  const bar = (w, h = "h-4") => el("div", { class: "sk " + h, style: "width:" + w });
+  const kpi = () => el("div", { class: "card space-y-2.5" }, [bar("55%"), bar("75%", "h-6")]);
+  const row = () => el("div", { class: "flex items-center gap-3" }, [bar("2rem", "h-8"), bar("28%"), bar("18%"), el("div", { class: "flex-1" }), bar("3.5rem")]);
+  return el("div", { class: "space-y-5" }, [
+    el("div", { class: "flex items-center justify-between" }, [bar("9rem", "h-7"), bar("7rem", "h-9")]),
+    el("div", { class: "grid grid-cols-2 gap-3 sm:grid-cols-4" }, [kpi(), kpi(), kpi(), kpi()]),
+    el("div", { class: "card space-y-4" }, Array.from({ length: 6 }, row)),
+  ]);
+}
+
+/** Small centered spinner (inline hosts where a full skeleton is too much). */
+export function loadingSpinner(text) {
+  return el("div", { class: "flex flex-col items-center justify-center gap-3 py-12" }, [
     el("span", { class: "spinner spinner-lg text-brand-500" }),
     el("span", { class: "text-sm font-medium text-soft" }, text || t("common.loading")),
   ]);
