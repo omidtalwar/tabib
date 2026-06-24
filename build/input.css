@@ -20,7 +20,20 @@
 
 @layer components {
   /* Large tap targets; this is used fast on cheap tablets. */
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:pointer-events-none; }
+  .btn { @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:pointer-events-none; }
+
+  /* Compact icon action buttons (table rows, toolbars). */
+  .icon-btn { @apply inline-grid h-9 w-9 flex-none place-items-center rounded-lg border border-line bg-white text-soft transition hover:bg-black/[0.04] hover:text-ink; }
+  .icon-btn svg { @apply h-[18px] w-[18px]; }
+  .icon-btn.danger:hover { @apply border-danger/30 bg-danger/5 text-danger; }
+
+  /* Search field with a leading icon. */
+  .search { @apply relative; }
+  .search > input { @apply w-full rounded-xl border border-line bg-white py-2.5 pe-3 ps-9 text-sm text-ink placeholder:text-soft focus:border-brand-400; }
+  .search > svg { @apply pointer-events-none absolute inset-y-0 start-3 my-auto h-[18px] w-[18px] text-soft; }
+
+  /* Filter dropdown (toolbar). */
+  .filter-select { @apply rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-medium text-ink hover:border-brand-400; }
   .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700; }
   .btn-ghost { @apply btn border border-line bg-white text-ink hover:border-brand-400 hover:text-brand-700; }
   .btn-danger { @apply btn bg-danger text-white hover:brightness-95; }

@@ -2,7 +2,7 @@
  * Writes mirror drug_isar.dart wire shape (ISO dates, firestoreId, isDirty);
  * offline writes are queued by the Firestore SDK and replay on reconnect. */
 import { watch, create, update, softDelete, adjustStock, readAll, toDate, toIso } from "../repo.js";
-import { el, table, searchInput, toolbar, badge, money, fmtDate, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast } from "../ui.js";
+import { el, table, searchInput, toolbar, badge, money, fmtDate, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect } from "../ui.js";
 
 const CATEGORIES = ["Antibiotic", "Analgesic", "Antiseptic", "Vitamin", "Cardiac", "Diabetes", "Respiratory", "Other"];
 const UNITS = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Sachet", "Other"];
@@ -14,7 +14,7 @@ function isoToDateInput(iso) {
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
-  let drugs = null, q = "";
+  let drugs = null, q = "", category = "", status = "";
 
   async function drugForm(existing) {
     const suppliers = await readAll(pid, "suppliers").catch(() => []);
@@ -83,13 +83,21 @@ export default function render(outlet, ctx) {
     toast("Drug removed", { type: "ok" });
   }
 
-  const addBtn = el("button", { class: "btn-primary", onclick: () => drugForm(null) }, "+ Add drug");
-  const search = searchInput("Search name, generic, brand, barcode…", (v) => { q = v; paint(); });
+  const addBtn = el("button", { class: "btn-primary", onclick: () => drugForm(null) }, [
+    el("span", { html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' }),
+    "Add drug",
+  ]);
+  const search = searchInput("Search name, generic, brand…", (v) => { q = v; paint(); });
+  const catFilter = filterSelect(
+    [{ value: "", label: "All categories" }, ...CATEGORIES.map((c) => ({ value: c, label: c }))],
+    "", (v) => { category = v; paint(); }, "Category");
+  const statusFilter = filterSelect(
+    [{ value: "", label: "All stock" }, { value: "in", label: "In stock" }, { value: "low", label: "Low stock" }, { value: "out", label: "Out of stock" }, { value: "controlled", label: "Controlled" }],
+    "", (v) => { status = v; paint(); }, "Stock status");
+
+  const controls = el("div", { class: "flex flex-wrap items-center gap-2" }, [search, catFilter, statusFilter, addBtn]);
   const listHost = el("div", {}, loading());
-  outlet.append(el("div", { class: "space-y-5" }, [
-    toolbar("Drugs", el("div", { class: "flex gap-2" }, [search, addBtn])),
-    listHost,
-  ]));
+  outlet.append(el("div", { class: "space-y-5" }, [toolbar("Drugs", controls), listHost]));
 
   function stockCell(d) {
     const st = stockStatus(d);
@@ -107,10 +115,10 @@ export default function render(outlet, ctx) {
     return wrap;
   }
   function actions(d) {
-    return el("div", { class: "flex gap-1.5 justify-end" }, [
-      el("button", { class: "btn-ghost px-2.5 py-1 text-xs", onclick: () => drugForm(d) }, "Edit"),
-      el("button", { class: "btn-ghost px-2.5 py-1 text-xs", onclick: () => restock(d) }, "Restock"),
-      el("button", { class: "btn-ghost px-2.5 py-1 text-xs", onclick: () => remove(d) }, "Remove"),
+    return el("div", { class: "flex justify-end gap-1.5" }, [
+      iconButton(ICON.edit, "Edit", () => drugForm(d)),
+      iconButton(ICON.restock, "Restock", () => restock(d)),
+      iconButton(ICON.remove, "Remove", () => remove(d), { danger: true }),
     ]);
   }
 
@@ -118,6 +126,13 @@ export default function render(outlet, ctx) {
     if (!drugs) return;
     const rows = drugs.filter((d) => d.isActive !== false)
       .filter((d) => !q || [d.name, d.genericName, d.brand, d.barcode].some((x) => (x || "").toLowerCase().includes(q)))
+      .filter((d) => !category || d.category === category)
+      .filter((d) => {
+        if (!status) return true;
+        if (status === "controlled") return !!d.isControlled;
+        const k = stockStatus(d).key; // out | low | ok
+        return status === "in" ? k === "ok" : k === status;
+      })
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     listHost.replaceChildren(table([
       { label: "Name", render: (d) => el("div", {}, [

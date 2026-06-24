@@ -1,6 +1,6 @@
 /** Patients — live list + create/edit. Fields mirror patient_isar.dart. */
 import { watch, create, update, toIso, toDate } from "../repo.js";
-import { el, table, searchInput, toolbar, fmtDate, loading, formModal, toast } from "../ui.js";
+import { el, table, searchInput, toolbar, fmtDate, loading, formModal, toast, iconButton, ICON } from "../ui.js";
 
 const GENDERS = ["Male", "Female", "Other"];
 const BLOOD = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -62,7 +62,7 @@ export default function render(outlet, ctx) {
       { label: "Blood", render: (p) => p.bloodGroup || "—" },
       { label: "Allergies", render: (p) => Array.isArray(p.allergies) && p.allergies.length ? p.allergies.join(", ") : "—" },
       { label: "Added", render: (p) => fmtDate(toDate(p.createdAt)) },
-      { label: "", render: (p) => el("button", { class: "btn-ghost px-2.5 py-1 text-xs", onclick: () => form(p) }, "Edit") },
+      { label: "", render: (p) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(p))) },
     ], filtered, { empty: "No patients yet", emptyHint: "Add your first patient with the button above." }));
   }
 

@@ -236,12 +236,42 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
   });
 }
 
-/* A search input that filters as you type; calls onInput(value). */
+/* A search box with a leading magnifier icon; calls onInput(lowercased value). */
 export function searchInput(placeholder, onInput) {
-  return el("input", {
-    class: "field max-w-sm", type: "search", placeholder,
+  const input = el("input", {
+    type: "search", placeholder,
     oninput: (e) => onInput(e.target.value.trim().toLowerCase()),
   });
+  const wrap = el("div", { class: "search w-full sm:w-64" });
+  wrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+  wrap.append(input);
+  return wrap;
+}
+
+/* Icon-only action button. `path` is inner SVG markup (24x24, stroke). */
+export function iconButton(path, title, onClick, { danger = false } = {}) {
+  const b = el("button", { class: "icon-btn" + (danger ? " danger" : ""), title, "aria-label": title, onclick: onClick });
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+  return b;
+}
+
+/* Common action-icon paths. */
+export const ICON = {
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+  restock: '<path d="M12 3v10m0 0 3.5-3.5M12 13 8.5 9.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  remove: '<path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M18 7l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7"/>',
+};
+
+/* A styled filter dropdown. options: [{value,label}]. Calls onChange(value). */
+export function filterSelect(options, value, onChange, ariaLabel = "Filter") {
+  return el("select", {
+    class: "filter-select", "aria-label": ariaLabel,
+    onchange: (e) => onChange(e.target.value),
+  }, options.map((o) => {
+    const opt = el("option", { value: o.value }, o.label);
+    if (String(o.value) === String(value)) opt.selected = true;
+    return opt;
+  }));
 }
 
 /* Section header row with a title and optional right-side node. */

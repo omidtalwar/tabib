@@ -1,6 +1,6 @@
 /** Suppliers — live list + create/edit. Fields mirror supplier_isar.dart. */
 import { watch, create, update } from "../repo.js";
-import { el, table, searchInput, toolbar, loading, formModal, toast } from "../ui.js";
+import { el, table, searchInput, toolbar, loading, formModal, toast, iconButton, ICON } from "../ui.js";
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
@@ -50,7 +50,7 @@ export default function render(outlet, ctx) {
       { label: "Phone", render: (s) => s.phone || "—" },
       { label: "Email", render: (s) => s.email || "—" },
       { label: "Address", render: (s) => s.address || "—" },
-      { label: "", render: (s) => el("button", { class: "btn-ghost px-2.5 py-1 text-xs", onclick: () => form(s) }, "Edit") },
+      { label: "", render: (s) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(s))) },
     ], filtered, { empty: "No suppliers yet", emptyHint: "Add your first supplier with the button above." }));
   }
 
