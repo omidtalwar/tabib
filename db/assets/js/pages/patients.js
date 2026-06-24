@@ -5,8 +5,6 @@ import { el, table, searchInput, toolbar, fmtDate, loading, formModal, toast, ic
 const GENDERS = ["Male", "Female", "Other"];
 const BLOOD = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-function isoToDateInput(iso) { const d = toDate(iso); return d ? d.toISOString().slice(0, 10) : ""; }
-
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let rows = null, q = "";
@@ -15,13 +13,13 @@ export default function render(outlet, ctx) {
     const ok = await formModal({
       title: existing ? "Edit patient" : "Add patient",
       values: existing
-        ? { ...existing, dateOfBirth: isoToDateInput(existing.dateOfBirth), allergies: (existing.allergies || []).join(", ") }
+        ? { ...existing, allergies: (existing.allergies || []).join(", ") }
         : { gender: "Other" },
       fields: [
         { name: "fullName", label: "Full name", required: true },
         { name: "phone", label: "Phone", type: "tel" },
         { name: "gender", label: "Gender", type: "select", options: GENDERS, default: "Other" },
-        { name: "dateOfBirth", label: "Date of birth", type: "date" },
+        { name: "dateOfBirth", label: "Date of birth", type: "jdate" },
         { name: "bloodGroup", label: "Blood group", type: "select", options: BLOOD.map((b) => ({ value: b, label: b || "—" })) },
         { name: "emergencyContact", label: "Emergency contact", type: "tel" },
         { name: "insuranceId", label: "Insurance ID" },

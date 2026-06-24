@@ -3,6 +3,8 @@
  * No framework. Plain, active-voice copy; empty states tell the user what to do.
  */
 
+import { formatJalali, gregToJalali, jalaliToDate, todayJalali, jMonthLength, JMONTHS } from "./jalali.js";
+
 /* ---------------- escaping ---------------- */
 export function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({
@@ -84,11 +86,20 @@ export function money(n, currency = "AFN", locale = "en-US") {
   }
 }
 
-export function fmtDate(date, locale = "en-US") {
+/** Dates display in Shamsi (Afghan calendar): "1403/01/15". */
+export function fmtDate(date) {
   if (!date) return "—";
   const d = date instanceof Date ? date : new Date(date);
   if (isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }).format(d);
+  return formatJalali(d);
+}
+
+/** Shamsi with month name: "15 Hamal 1403". */
+export function fmtDateLong(date) {
+  if (!date) return "—";
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return "—";
+  return formatJalali(d, { withMonthName: true });
 }
 
 export function daysUntil(date) {
@@ -163,7 +174,7 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
 
     const body = el("div", { class: "grid gap-3 sm:grid-cols-2" }, fields.map((f) => {
       const id = `f_${f.name}`;
-      let input;
+      let input, jsel = null;
       const v = values[f.name];
       if (f.type === "select") {
         input = el("select", { id, class: "field" }, (f.options || []).map((o) => {
@@ -176,6 +187,39 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
         if (v) input.checked = true;
       } else if (f.type === "textarea") {
         input = el("textarea", { id, class: "field", rows: "2", placeholder: f.placeholder || "" }, v ?? "");
+      } else if (f.type === "jdate") {
+        // Shamsi date entry via three selects (year / month / day). Stores ISO.
+        const init = v ? gregToJalali(new Date(v)) : null;
+        const today = todayJalali();
+        const ySel = el("select", { class: "field", "aria-label": f.label + " year" });
+        ySel.append(el("option", { value: "" }, "Year"));
+        for (let y = today.jy + 5; y >= today.jy - 90; y--) {
+          const o = el("option", { value: String(y) }, String(y));
+          if (init && init.jy === y) o.selected = true;
+          ySel.append(o);
+        }
+        const mSel = el("select", { class: "field", "aria-label": f.label + " month" });
+        mSel.append(el("option", { value: "" }, "Month"));
+        JMONTHS.forEach((nm, i) => {
+          const o = el("option", { value: String(i + 1) }, `${String(i + 1).padStart(2, "0")} · ${nm}`);
+          if (init && init.jm === i + 1) o.selected = true;
+          mSel.append(o);
+        });
+        const dSel = el("select", { class: "field", "aria-label": f.label + " day" });
+        const rebuildDays = () => {
+          const yy = +ySel.value, mm = +mSel.value;
+          const max = (yy && mm) ? jMonthLength(yy, mm) : 31;
+          const keep = dSel.value;
+          dSel.replaceChildren(el("option", { value: "" }, "Day"));
+          for (let dd = 1; dd <= max; dd++) dSel.append(el("option", { value: String(dd) }, String(dd)));
+          if (keep && +keep <= max) dSel.value = keep;
+        };
+        rebuildDays();
+        if (init) dSel.value = String(init.jd);
+        ySel.addEventListener("change", rebuildDays);
+        mSel.addEventListener("change", rebuildDays);
+        input = el("div", { class: "grid grid-cols-3 gap-2" }, [ySel, mSel, dSel]);
+        jsel = { y: ySel, m: mSel, d: dSel };
       } else {
         input = el("input", {
           id, type: f.type || "text", class: "field",
@@ -183,9 +227,10 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
           value: v != null ? String(v) : "",
         });
       }
-      inputs[f.name] = { input, f };
-      const wrap = el("div", { class: f.full || f.type === "textarea" ? "sm:col-span-2" : "" }, [
-        el("label", { class: "label", for: id }, f.label + (f.required ? " *" : "")),
+      inputs[f.name] = { input, f, jsel };
+      const isWide = f.full || f.type === "textarea" || f.type === "jdate";
+      const wrap = el("div", { class: isWide ? "sm:col-span-2" : "" }, [
+        el("label", { class: "label", for: id }, f.label + (f.required ? " *" : "") + (f.type === "jdate" ? " (Shamsi)" : "")),
         f.type === "checkbox"
           ? el("label", { class: "flex items-center gap-2 text-sm text-ink" }, [input, f.help || ""])
           : input,
@@ -206,15 +251,19 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
       ]);
       async function submit() {
         const data = {};
-        for (const [name, { input, f }] of Object.entries(inputs)) {
+        for (const [name, meta] of Object.entries(inputs)) {
+          const { input, f, jsel } = meta;
           let val;
           if (f.type === "checkbox") val = input.checked;
-          else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
+          else if (f.type === "jdate") {
+            const y = +jsel.y.value, m = +jsel.m.value, dd = +jsel.d.value;
+            val = (y && m && dd) ? jalaliToDate(y, m, dd).toISOString() : null;
+          } else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
           else val = input.value.trim();
           if (f.required && (val === "" || val == null)) {
             err.textContent = `${f.label} is required.`;
             err.classList.remove("hidden");
-            input.focus();
+            if (input.focus) input.focus();
             return;
           }
           data[name] = val;

@@ -9,7 +9,7 @@
  *
  * Bump CACHE_VERSION to force clients onto fresh assets.
  */
-const CACHE_VERSION = "tabib-rx-v1";
+const CACHE_VERSION = "tabib-rx-v2";
 
 // Same-origin shell to precache so the portal opens offline after install.
 const SHELL = [
@@ -23,6 +23,7 @@ const SHELL = [
   "./assets/js/repo.js",
   "./assets/js/router.js",
   "./assets/js/ui.js",
+  "./assets/js/jalali.js",
   "./assets/js/pages/dashboard.js",
   "./assets/js/pages/drugs.js",
   "./assets/js/pages/inventory.js",

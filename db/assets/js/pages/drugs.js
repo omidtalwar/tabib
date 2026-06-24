@@ -7,11 +7,6 @@ import { el, table, searchInput, toolbar, badge, money, fmtDate, stockStatus, ex
 const CATEGORIES = ["Antibiotic", "Analgesic", "Antiseptic", "Vitamin", "Cardiac", "Diabetes", "Respiratory", "Other"];
 const UNITS = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Sachet", "Other"];
 
-function isoToDateInput(iso) {
-  const d = toDate(iso);
-  return d ? d.toISOString().slice(0, 10) : "";
-}
-
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let drugs = null, q = "", category = "", status = "";
@@ -21,7 +16,7 @@ export default function render(outlet, ctx) {
     const supplierOpts = [{ value: "", label: "— none —" }, ...suppliers.map((s) => ({ value: s.firestoreId || s.id, label: s.name || "Unnamed" }))];
     const ok = await formModal({
       title: existing ? "Edit drug" : "Add drug",
-      values: existing ? { ...existing, expiryDate: isoToDateInput(existing.expiryDate) } : { unit: "Tablet", category: "Other", reorderThreshold: 10, isActive: true },
+      values: existing ? { ...existing } : { unit: "Tablet", category: "Other", reorderThreshold: 10, isActive: true },
       fields: [
         { name: "name", label: "Name", required: true },
         { name: "genericName", label: "Generic name" },
@@ -33,7 +28,7 @@ export default function render(outlet, ctx) {
         { name: "reorderThreshold", label: "Reorder threshold", type: "number", min: "0" },
         { name: "unitPrice", label: "Unit (cost) price", type: "number", step: "0.01", min: "0" },
         { name: "sellingPrice", label: "Selling price", type: "number", step: "0.01", min: "0" },
-        { name: "expiryDate", label: "Expiry date", type: "date" },
+        { name: "expiryDate", label: "Expiry date", type: "jdate" },
         { name: "batchNumber", label: "Batch number" },
         { name: "supplierId", label: "Supplier", type: "select", options: supplierOpts },
         { name: "description", label: "Description", type: "textarea", full: true },
@@ -60,11 +55,11 @@ export default function render(outlet, ctx) {
     const ok = await formModal({
       title: `Restock — ${d.name}`,
       submitLabel: "Add stock",
-      values: { batchNumber: d.batchNumber, expiryDate: isoToDateInput(d.expiryDate) },
+      values: { batchNumber: d.batchNumber, expiryDate: d.expiryDate },
       fields: [
         { name: "qty", label: "Quantity to add", type: "number", required: true, min: "1" },
         { name: "batchNumber", label: "Batch number" },
-        { name: "expiryDate", label: "Expiry date", type: "date" },
+        { name: "expiryDate", label: "Expiry date", type: "jdate" },
       ],
       onSubmit: async (v) => {
         const extra = {};
