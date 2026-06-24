@@ -46,4 +46,20 @@
 
   .sidebar-link { @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-soft hover:bg-brand-50 hover:text-brand-700; }
   .sidebar-link.active { @apply bg-brand-50 text-brand-700; }
+
+  /* ---- Windows 11 / Fluent-style sidebar ---- */
+  .side-profile { @apply flex items-center gap-3 px-3 py-3 mb-1; }
+  .side-avatar { @apply grid h-10 w-10 flex-none place-items-center rounded-full text-sm font-bold text-white; background-image: linear-gradient(135deg, theme(colors.brand.400), theme(colors.brand.600)); }
+  .side-name { @apply text-sm font-bold leading-tight text-ink; }
+  .side-email { @apply text-xs text-soft; }
+
+  .nav-tile { @apply relative flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-ink transition; }
+  .nav-tile:hover { @apply bg-black/5; }
+  .nav-tile.active { @apply bg-black/[0.06]; }
+  .nav-tile.active::before { content: ""; @apply absolute start-0 h-5 w-1 rounded-full bg-brand-500; top: 50%; transform: translateY(-50%); }
+  .nav-ico { @apply grid h-7 w-7 flex-none place-items-center rounded-lg text-white; }
+  .nav-ico svg { @apply h-[17px] w-[17px]; }
+
+  /* Softer, more Fluent cards + page chrome */
+  .fluent-card { @apply rounded-xl border border-line bg-white p-4; }
 }
