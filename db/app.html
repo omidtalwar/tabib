@@ -119,11 +119,22 @@
       }
       setActivePharmacy(active);
 
-      // Avatars (sidebar shows pharmacy; header shows the user).
+      // Avatars use the Google profile photo when available, else an initial.
       const email = session.email || "";
       const initial = (email[0] || "P").toUpperCase();
-      document.getElementById("avatar").textContent = initial;
-      document.getElementById("headerAvatar").textContent = initial;
+      const setAvatar = (id) => {
+        const elm = document.getElementById(id);
+        if (session.photoURL) {
+          elm.textContent = "";
+          elm.style.backgroundImage = `url("${session.photoURL}")`;
+          elm.style.backgroundSize = "cover";
+          elm.style.backgroundPosition = "center";
+        } else {
+          elm.textContent = initial;
+        }
+      };
+      setAvatar("avatar");
+      setAvatar("headerAvatar");
       document.getElementById("sideRole").textContent = session.role === "admin" ? "Admin" : "Pharmacy";
 
       // Build sidebar nav (colored icon tiles).

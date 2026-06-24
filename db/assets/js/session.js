@@ -87,6 +87,8 @@ function toSession(user, claims) {
   return {
     uid: user.uid,
     email: user.email,
+    photoURL: user.photoURL ?? null,
+    displayName: user.displayName ?? null,
     pharmacyId: claims.pharmacyId ?? null,
     role: claims.role ?? null,
   };
@@ -128,6 +130,8 @@ export async function requirePharmacySession({ loginUrl = "./index.html" } = {})
   const s = {
     uid: user.uid,
     email: user.email,
+    photoURL: user.photoURL ?? null,
+    displayName: user.displayName ?? null,
     pharmacyId: res.claims.pharmacyId ?? null,
     role: res.claims.role ?? null,
   };
