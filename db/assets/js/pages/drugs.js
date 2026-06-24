@@ -1,5 +1,5 @@
 /** Drugs / Catalog — live list + create/edit/restock/soft-delete. */
-import { watch, create, update, softDelete, adjustStock, readAll, toDate, toIso } from "../repo.js";
+import { watch, create, update, softDelete, adjustStock, recordAdjustment, uuid, readAll, toDate, toIso } from "../repo.js";
 import { el, table, searchInput, toolbar, badge, money, fmtDate, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -76,6 +76,34 @@ export default function render(outlet, ctx) {
     toast(t("drugs.removed"), { type: "ok" });
   }
 
+  async function adjust(d) {
+    const ok = await formModal({
+      title: t("adj.title", { name: d.name }),
+      submitLabel: t("adj.save"),
+      values: { type: "write_off", quantity: -1 },
+      fields: [
+        { name: "type", label: t("adj.type"), type: "select", options: [
+          { value: "write_off", label: t("adj.typeWriteOff") },
+          { value: "damage", label: t("adj.typeDamage") },
+          { value: "expiry", label: t("adj.typeExpiry") },
+          { value: "correction", label: t("adj.typeCorrection") },
+          { value: "add", label: t("adj.typeAdd") },
+        ] },
+        { name: "quantity", label: t("adj.qty"), type: "number", required: true, help: t("adj.qtyHelp") },
+        { name: "reason", label: t("adj.reason"), type: "textarea", full: true },
+      ],
+      onSubmit: async (v) => {
+        await recordAdjustment(pid, uuid(), {
+          id: Date.now(), drugId: d.firestoreId || d.id, drugName: d.name,
+          type: v.type, quantity: Number(v.quantity) || 0, reason: v.reason || "",
+          date: new Date().toISOString(), recordedBy: ctx.session.email || "",
+          createdAt: new Date().toISOString(), isDirty: false,
+        });
+      },
+    });
+    if (ok) toast(t("adj.recorded"), { type: "ok" });
+  }
+
   const addBtn = el("button", { class: "btn-primary", onclick: () => drugForm(null) }, [
     el("span", { html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' }), t("drugs.add"),
   ]);
@@ -110,6 +138,7 @@ export default function render(outlet, ctx) {
     return el("div", { class: "flex justify-end gap-1.5" }, [
       iconButton(ICON.edit, t("common.edit"), () => drugForm(d), { color: "blue" }),
       iconButton(ICON.restock, t("drugs.restockAdd"), () => restock(d), { color: "teal" }),
+      iconButton('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>', t("adj.action"), () => adjust(d), { color: "amber" }),
       iconButton(ICON.remove, t("common.remove"), () => remove(d), { color: "red" }),
     ]);
   }

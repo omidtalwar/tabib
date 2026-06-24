@@ -8,7 +8,7 @@ const TABS = ["sales", "inventory", "expiry", "purchases", "financial", "custome
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
-  let drugs = null, sales = null, expenses = null;
+  let drugs = null, sales = null, expenses = null, purchases = null, returns = null;
   let tab = "sales", preset = "month", expiryWindow = 30;
   let fromPick = null, toPick = null;
   const current = {};
@@ -16,9 +16,9 @@ export default function render(outlet, ctx) {
   const root = el("div", { class: "space-y-5" }, loading());
   outlet.append(root);
 
-  Promise.all([readAll(pid, "drugs"), readAll(pid, "sales"), readAll(pid, "expenses")])
-    .then(([d, s, e]) => { drugs = d; sales = s; expenses = e; paint(); })
-    .catch(() => { drugs = []; sales = []; expenses = []; paint(); });
+  Promise.all([readAll(pid, "drugs"), readAll(pid, "sales"), readAll(pid, "expenses"), readAll(pid, "purchases"), readAll(pid, "returns")])
+    .then(([d, s, e, p, r]) => { drugs = d; sales = s; expenses = e; purchases = p; returns = r; paint(); })
+    .catch(() => { drugs = []; sales = []; expenses = []; purchases = []; returns = []; paint(); });
 
   function range() {
     const now = new Date();
@@ -40,6 +40,9 @@ export default function render(outlet, ctx) {
   const rangeSales = () => sales.filter(inRange);
   const inRangeE = (e) => { const d = toDate(e.date); if (!d) return false; const { from, to } = range(); return d >= from && d <= to; };
   const rangeExpenses = () => expenses.filter((e) => e.isActive !== false && inRangeE(e));
+  const inDate = (x) => { const d = toDate(x.date); if (!d) return false; const { from, to } = range(); return d >= from && d <= to; };
+  const rangePurchases = () => purchases.filter((p) => p.isActive !== false && inDate(p));
+  const rangeReturns = () => returns.filter((r) => inDate(r));
   const parseItems = (s) => { try { return JSON.parse(s.itemsJson || "[]"); } catch { return []; } };
   const drugMap = () => Object.fromEntries(drugs.map((d) => [d.firestoreId || d.id, d]));
   const num = (x) => Number(x) || 0;
@@ -175,7 +178,9 @@ export default function render(outlet, ctx) {
       if ((s.paymentMethod || "") === "cash") cashSales += num(s.total);
       for (const it of parseItems(s)) { const dr = dm[it.drugId]; cogs += (dr ? num(dr.unitPrice) : 0) * num(it.quantity); }
     }
-    const gross = revenue - cogs;
+    const returnsTotal = rangeReturns().reduce((a, r) => a + num(r.total), 0);
+    const netSales = revenue - returnsTotal;
+    const gross = netSales - cogs;
     const exps = rangeExpenses();
     let totalExp = 0, cashExp = 0; const expByCat = {};
     for (const e of exps) { const a = num(e.amount); totalExp += a; if ((e.paymentMethod || "") === "cash") cashExp += a; expByCat[e.category || "Miscellaneous"] = (expByCat[e.category || "Miscellaneous"] || 0) + a; }
@@ -188,7 +193,7 @@ export default function render(outlet, ctx) {
     current.csv = [[t("rep.metric"), t("rep.amount")], [t("rep.revenue"), revenue.toFixed(2)], [t("rep.cogs"), cogs.toFixed(2)], [t("rep.grossProfit"), gross.toFixed(2)], [t("rep.expenses"), totalExp.toFixed(2)], [t("rep.netProfit"), net.toFixed(2)], [t("rep.receivables"), receivables.toFixed(2)], [t("rep.cashSalesIn"), cashSales.toFixed(2)], [t("rep.cashExpOut"), cashExp.toFixed(2)], [t("rep.netCash"), netCash.toFixed(2)]];
 
     const pl = table([{ label: t("rep.metric"), render: (r) => r[0] }, { label: t("rep.amount"), render: (r) => money(r[1]) }],
-      [[t("rep.revenue"), revenue], [t("rep.cogs"), cogs], [t("rep.grossProfit"), gross], [t("rep.expenses"), -totalExp], [t("rep.netProfit"), net], [t("rep.receivables"), receivables]], {});
+      [[t("rep.revenue"), revenue], [t("rep.returns"), -returnsTotal], [t("rep.netSales"), netSales], [t("rep.cogs"), cogs], [t("rep.grossProfit"), gross], [t("rep.expenses"), -totalExp], [t("rep.netProfit"), net], [t("rep.receivables"), receivables]], {});
     const catRows = Object.entries(expByCat).sort((a, b) => b[1] - a[1]);
     const expTable = table([{ label: t("rep.category"), render: (r) => r[0] }, { label: t("rep.amount"), render: (r) => money(r[1]) }], catRows, { empty: t("rep.noSalesRange") });
     const cashTable = table([{ label: t("rep.cashRecon"), render: (r) => r[0] }, { label: t("rep.amount"), render: (r) => money(r[1]) }],
@@ -228,11 +233,24 @@ export default function render(outlet, ctx) {
   }
 
   function purchasesTab() {
-    current.title = t("rep.tabPurchases"); current.kpis = []; current.csv = [];
-    return el("div", { class: "card" }, [
-      el("p", { class: "font-semibold text-ink" }, t("rep.purchases")),
-      el("p", { class: "mt-1 text-sm text-soft" }, t("rep.purchasesNote")),
-    ]);
+    const ps = rangePurchases();
+    let totalP = 0, paidP = 0; const bySup = {};
+    for (const p of ps) {
+      const tot = num(p.total); totalP += tot; paidP += num(p.amountPaid);
+      const k = p.supplierName || "—"; bySup[k] = bySup[k] || { total: 0, paid: 0 };
+      bySup[k].total += tot; bySup[k].paid += num(p.amountPaid);
+    }
+    const kpis = [[t("pur.kTotal"), money(totalP)], [t("rep.payables"), money(totalP - paidP)], [t("pur.kEntries"), String(ps.length)]];
+    current.title = t("rep.title") + " — " + t("rep.tabPurchases"); current.kpis = kpis;
+    const supRows = Object.entries(bySup).sort((a, b) => b[1].total - a[1].total);
+    current.csv = [[t("rep.supplier"), t("rep.purchased"), t("pur.colPaid"), t("rep.purDue")], ...supRows.map(([n, v]) => [n, v.total.toFixed(2), v.paid.toFixed(2), (v.total - v.paid).toFixed(2)])];
+    const tbl = table([
+      { label: t("rep.supplier"), render: (r) => r[0] },
+      { label: t("rep.purchased"), render: (r) => money(r[1].total) },
+      { label: t("pur.colPaid"), render: (r) => money(r[1].paid) },
+      { label: t("rep.purDue"), render: (r) => money(r[1].total - r[1].paid) },
+    ], supRows, { empty: t("rep.noPurchases") });
+    return el("div", { class: "space-y-5" }, [kpiRow(kpis), sectionCard(t("rep.purBySupplier"), tbl)]);
   }
 
   const TAB_FNS = { sales: salesTab, inventory: inventoryTab, expiry: expiryTab, purchases: purchasesTab, financial: financialTab, customers: customersTab };
@@ -289,7 +307,7 @@ export default function render(outlet, ctx) {
   }
 
   function paint() {
-    if (!drugs || !sales || !expenses) return;
+    if (!drugs || !sales || !expenses || !purchases || !returns) return;
     root.replaceChildren(header(), tabBar(), TAB_FNS[tab]());
   }
 }

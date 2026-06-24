@@ -207,3 +207,47 @@ export function commitSale(pharmacyId, saleId, salePayload, items) {
   }
   return b.commit();
 }
+
+/**
+ * Commit a purchase (goods received): write the purchase doc AND add each line's
+ * quantity to the drug's stock, refreshing its cost price (and batch/expiry if
+ * given). Atomic writeBatch, offline-capable. items: [{drugId, quantity, costPrice, batchNumber?, expiryDate?}].
+ */
+export function commitPurchase(pharmacyId, purchaseId, payload, items) {
+  const b = writeBatch(db);
+  b.set(docRef(pharmacyId, "purchases", purchaseId), { ...payload, firestoreId: purchaseId });
+  const now = new Date().toISOString();
+  for (const it of items) {
+    if (!it.drugId) continue;
+    const patch = { stockQuantity: increment(Math.abs(it.quantity || 0)), lastSyncedAt: now };
+    if (it.costPrice != null && it.costPrice !== "") patch.unitPrice = Number(it.costPrice) || 0;
+    if (it.batchNumber) patch.batchNumber = it.batchNumber;
+    if (it.expiryDate) patch.expiryDate = it.expiryDate;
+    b.update(docRef(pharmacyId, "drugs", it.drugId), patch);
+  }
+  return b.commit();
+}
+
+/** Record a stock adjustment (write-off / correction): logs it + applies a signed delta. */
+export function recordAdjustment(pharmacyId, adjId, payload) {
+  const b = writeBatch(db);
+  b.set(docRef(pharmacyId, "stock_adjustments", adjId), { ...payload, firestoreId: adjId });
+  b.update(docRef(pharmacyId, "drugs", payload.drugId), {
+    stockQuantity: increment(Number(payload.quantity) || 0),
+    lastSyncedAt: new Date().toISOString(),
+  });
+  return b.commit();
+}
+
+/** Process a return: write the return doc, restock returned items, mark the sale returned. */
+export function commitReturn(pharmacyId, returnId, payload, items) {
+  const b = writeBatch(db);
+  b.set(docRef(pharmacyId, "returns", returnId), { ...payload, firestoreId: returnId });
+  const now = new Date().toISOString();
+  for (const it of items) {
+    if (!it.drugId || !it.quantity) continue;
+    b.update(docRef(pharmacyId, "drugs", it.drugId), { stockQuantity: increment(Math.abs(it.quantity)), lastSyncedAt: now });
+  }
+  if (payload.saleId) b.update(docRef(pharmacyId, "sales", payload.saleId), { returned: true, updatedAt: now });
+  return b.commit();
+}

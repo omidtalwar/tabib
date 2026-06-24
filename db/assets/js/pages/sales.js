@@ -1,6 +1,6 @@
 /** Sales — history + POS (atomic, offline-capable sale via commitSale). */
-import { watch, commitSale, uuid, toDate } from "../repo.js";
-import { el, table, searchInput, toolbar, money, fmtDate, loading, toast, confirmDialog } from "../ui.js";
+import { watch, commitSale, commitReturn, uuid, toDate } from "../repo.js";
+import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog, formModal, printContent, iconButton, esc } from "../ui.js";
 import { t } from "../i18n.js";
 
 const PAYMENTS = ["cash", "card", "insurance", "credit"];
@@ -46,11 +46,51 @@ export default function render(outlet, ctx) {
     try {
       await commitSale(pid, saleId, payload, items);
       toast(t("sales.recorded", { total: money(total) }), { type: "ok" });
+      printReceipt({ ...payload, firestoreId: saleId });
       cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0;
       mode = "history"; paint();
     } catch (e) {
       toast(e.message || t("sales.couldnt"), { type: "error" });
     }
+  }
+
+  function printReceipt(s) {
+    let items = []; try { items = JSON.parse(s.itemsJson || "[]"); } catch {}
+    const rows = items.map((it) => `<tr><td>${esc(it.drugName)}</td><td>${esc(it.quantity)}</td><td>${esc(money(it.unitPrice))}</td><td>${esc(money(it.subtotal))}</td></tr>`).join("");
+    printContent(t("rcp.title"), `<h1>${t("rcp.title")} ${esc(s.receiptNumber || "")}</h1>
+      <div class="sub">${t("rcp.date")}: ${esc(fmtDate(toDate(s.createdAt)))} · ${t("rcp.cashier")}: ${esc(s.staffName || "")}${s.patientName ? " · " + t("rcp.patient") + ": " + esc(s.patientName) : ""}</div>
+      <table><tr><th>${t("rcp.item")}</th><th>${t("rcp.qty")}</th><th>${t("rcp.price")}</th><th>${t("rcp.amount")}</th></tr>${rows}</table>
+      <div class="kpis" style="margin-top:10px">
+        <span class="kpi"><b>${esc(money(s.subtotal))}</b><span>${t("rcp.subtotal")}</span></span>
+        <span class="kpi"><b>${esc(money((s.discountAmount || 0) + (s.insuranceCoverage || 0)))}</b><span>${t("rcp.discount")}</span></span>
+        <span class="kpi"><b>${esc(money(s.total))}</b><span>${t("rcp.total")}</span></span>
+      </div>
+      <p style="margin-top:16px;text-align:center">${t("rcp.thanks")}</p>`);
+  }
+
+  async function returnSale(s) {
+    if (s.returned) { toast(t("ret.already"), { type: "warn" }); return; }
+    let items = []; try { items = JSON.parse(s.itemsJson || "[]"); } catch {}
+    const ok = await formModal({
+      title: t("ret.title", { receipt: s.receiptNumber || "" }),
+      submitLabel: t("ret.confirm"),
+      fields: [
+        ...items.map((it, i) => ({ name: "q" + i, label: `${it.drugName} (×${it.quantity})`, type: "number", min: "0", placeholder: "0" })),
+        { name: "reason", label: t("ret.reason"), full: true },
+      ],
+      onSubmit: async (v) => {
+        const retItems = items.map((it, i) => ({ drugId: it.drugId, drugName: it.drugName, quantity: Math.min(Number(v["q" + i]) || 0, it.quantity), unitPrice: it.unitPrice })).filter((x) => x.quantity > 0);
+        if (!retItems.length) throw new Error(t("ret.none"));
+        const totalRet = retItems.reduce((a, x) => a + x.unitPrice * x.quantity, 0);
+        await commitReturn(pid, uuid(), {
+          id: Date.now(), saleId: s.firestoreId || s.id, receiptNumber: s.receiptNumber || "",
+          itemsJson: JSON.stringify(retItems), total: totalRet, reason: v.reason || "",
+          date: new Date().toISOString(), recordedBy: ctx.session.email || "",
+          createdAt: new Date().toISOString(), isDirty: false,
+        }, retItems);
+      },
+    });
+    if (ok) toast(t("ret.recorded"), { type: "ok" });
   }
 
   function posView() {
@@ -125,6 +165,10 @@ export default function render(outlet, ctx) {
       { label: t("sales.colPayment"), render: (s) => s.paymentMethod || "—" },
       { label: t("sales.colTotal"), render: (s) => money(s.total) },
       { label: t("sales.colWhen"), render: (s) => fmtDate(toDate(s.createdAt)) },
+      { label: "", render: (s) => el("div", { class: "flex justify-end gap-1.5" }, [
+        iconButton('<path d="M6 9V3h12v6M6 18H4v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5h-2M8 14h8v7H8z"/>', t("rcp.print"), () => printReceipt(s), { color: "blue" }),
+        s.returned ? el("span", { class: "self-center", html: badge(t("ret.returned"), "muted") }) : iconButton('<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v3"/>', t("ret.action"), () => returnSale(s), { color: "red" }),
+      ]) },
     ], rows, { empty: t("sales.empty"), emptyHint: t("sales.emptyHint") });
   }
 
