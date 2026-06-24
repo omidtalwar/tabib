@@ -130,6 +130,91 @@ export function badge(text, kind = "muted") {
   return `<span class="${cls}">${esc(text)}</span>`;
 }
 
+/* ---------------- Shamsi date picker (standalone) ----------------
+ * Returns { node, value() } where value() yields an ISO string or null. */
+export function shamsiDate(initialISO) {
+  const init = initialISO ? gregToJalali(new Date(initialISO)) : null;
+  const today = todayJalali();
+  const ySel = el("select", { class: "field" });
+  ySel.append(el("option", { value: "" }, "Year"));
+  for (let y = today.jy + 5; y >= today.jy - 90; y--) {
+    const o = el("option", { value: String(y) }, String(y));
+    if (init && init.jy === y) o.selected = true;
+    ySel.append(o);
+  }
+  const mSel = el("select", { class: "field" });
+  mSel.append(el("option", { value: "" }, "Month"));
+  JMONTHS.forEach((nm, i) => {
+    const o = el("option", { value: String(i + 1) }, `${String(i + 1).padStart(2, "0")} · ${nm}`);
+    if (init && init.jm === i + 1) o.selected = true;
+    mSel.append(o);
+  });
+  const dSel = el("select", { class: "field" });
+  const rebuild = () => {
+    const yy = +ySel.value, mm = +mSel.value;
+    const max = (yy && mm) ? jMonthLength(yy, mm) : 31;
+    const keep = dSel.value;
+    dSel.replaceChildren(el("option", { value: "" }, "Day"));
+    for (let dd = 1; dd <= max; dd++) dSel.append(el("option", { value: String(dd) }, String(dd)));
+    if (keep && +keep <= max) dSel.value = keep;
+  };
+  rebuild();
+  if (init) dSel.value = String(init.jd);
+  ySel.addEventListener("change", rebuild);
+  mSel.addEventListener("change", rebuild);
+  const node = el("div", { class: "grid grid-cols-3 gap-2" }, [ySel, mSel, dSel]);
+  return {
+    node,
+    value: () => { const y = +ySel.value, m = +mSel.value, d = +dSel.value; return (y && m && d) ? jalaliToDate(y, m, d).toISOString() : null; },
+  };
+}
+
+/* ---------------- export / print / charts ---------------- */
+
+/** Download rows (array of arrays) as a UTF-8 CSV file. */
+export function downloadCSV(filename, rows) {
+  const cell = (s) => { s = String(s ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = el("a", { href: url, download: filename });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Open a print-formatted window with the given title + inner HTML. */
+export function printContent(title, innerHTML) {
+  const w = window.open("", "_blank");
+  if (!w) { toast("Allow popups to print", { type: "warn" }); return; }
+  w.document.write(
+    '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>' +
+    'body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:24px;color:#13201F}' +
+    'h1{font-size:18px;margin:0 0 2px}.sub{color:#6C7B7A;font-size:12px;margin-bottom:16px}' +
+    'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}' +
+    'th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f3f4f4}' +
+    '.kpis{margin:8px 0 4px}.kpi{display:inline-block;margin:0 18px 8px 0}.kpi b{display:block;font-size:16px}' +
+    '.kpi span{color:#6C7B7A;font-size:11px}</style></head><body>' + innerHTML +
+    '<script>window.onload=function(){window.print()}<\/script></body></html>'
+  );
+  w.document.close();
+}
+
+/** Lightweight SVG-free bar chart. data: [{label,value}]. */
+export function barChart(data, { height = 150, color = "#26b3a6" } = {}) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const wrap = el("div", { class: "flex items-stretch gap-1", style: `height:${height}px` });
+  wrap.innerHTML = data.map((d) => {
+    const h = Math.max(2, Math.round((d.value / max) * (height - 26)));
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:0">
+      <div style="flex:1;display:flex;align-items:flex-end;width:100%">
+        <div style="width:100%;height:${h}px;border-radius:5px 5px 0 0;background:${color}" title="${esc(d.label)}: ${esc(d.value)}"></div>
+      </div>
+      <span style="font-size:10px;color:#6C7B7A;margin-top:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.label)}</span>
+    </div>`;
+  }).join("");
+  return wrap;
+}
+
 /* ---------------- empty / error states ---------------- */
 export function emptyState(title, hint) {
   return el("div", { class: "card text-center py-12" }, [
@@ -188,38 +273,9 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
       } else if (f.type === "textarea") {
         input = el("textarea", { id, class: "field", rows: "2", placeholder: f.placeholder || "" }, v ?? "");
       } else if (f.type === "jdate") {
-        // Shamsi date entry via three selects (year / month / day). Stores ISO.
-        const init = v ? gregToJalali(new Date(v)) : null;
-        const today = todayJalali();
-        const ySel = el("select", { class: "field", "aria-label": f.label + " year" });
-        ySel.append(el("option", { value: "" }, "Year"));
-        for (let y = today.jy + 5; y >= today.jy - 90; y--) {
-          const o = el("option", { value: String(y) }, String(y));
-          if (init && init.jy === y) o.selected = true;
-          ySel.append(o);
-        }
-        const mSel = el("select", { class: "field", "aria-label": f.label + " month" });
-        mSel.append(el("option", { value: "" }, "Month"));
-        JMONTHS.forEach((nm, i) => {
-          const o = el("option", { value: String(i + 1) }, `${String(i + 1).padStart(2, "0")} · ${nm}`);
-          if (init && init.jm === i + 1) o.selected = true;
-          mSel.append(o);
-        });
-        const dSel = el("select", { class: "field", "aria-label": f.label + " day" });
-        const rebuildDays = () => {
-          const yy = +ySel.value, mm = +mSel.value;
-          const max = (yy && mm) ? jMonthLength(yy, mm) : 31;
-          const keep = dSel.value;
-          dSel.replaceChildren(el("option", { value: "" }, "Day"));
-          for (let dd = 1; dd <= max; dd++) dSel.append(el("option", { value: String(dd) }, String(dd)));
-          if (keep && +keep <= max) dSel.value = keep;
-        };
-        rebuildDays();
-        if (init) dSel.value = String(init.jd);
-        ySel.addEventListener("change", rebuildDays);
-        mSel.addEventListener("change", rebuildDays);
-        input = el("div", { class: "grid grid-cols-3 gap-2" }, [ySel, mSel, dSel]);
-        jsel = { y: ySel, m: mSel, d: dSel };
+        const sd = shamsiDate(v);
+        input = sd.node;
+        jsel = sd;
       } else {
         input = el("input", {
           id, type: f.type || "text", class: "field",
@@ -255,10 +311,8 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
           const { input, f, jsel } = meta;
           let val;
           if (f.type === "checkbox") val = input.checked;
-          else if (f.type === "jdate") {
-            const y = +jsel.y.value, m = +jsel.m.value, dd = +jsel.d.value;
-            val = (y && m && dd) ? jalaliToDate(y, m, dd).toISOString() : null;
-          } else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
+          else if (f.type === "jdate") val = jsel.value();
+          else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
           else val = input.value.trim();
           if (f.required && (val === "" || val == null)) {
             err.textContent = `${f.label} is required.`;
