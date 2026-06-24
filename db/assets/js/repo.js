@@ -44,6 +44,22 @@ export function pharmacyRef(pharmacyId) {
   return doc(db, "pharmacies", pharmacyId);
 }
 
+/* ---------------- multi-pharmacy (owner switcher) ---------------- */
+
+/** List pharmacies owned by a user → [{ id, name }]. Rules allow owners to list. */
+export async function listOwnedPharmacies(uid) {
+  const snap = await getDocs(query(collection(db, "pharmacies"), where("ownerUid", "==", uid)));
+  return snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.data().pharmacyName || d.id }));
+}
+
+const ACTIVE_KEY = "tabib_active_pharmacy";
+export function getActivePharmacy() {
+  try { return localStorage.getItem(ACTIVE_KEY); } catch { return null; }
+}
+export function setActivePharmacy(id) {
+  try { localStorage.setItem(ACTIVE_KEY, id); } catch {}
+}
+
 /* ---------------- date coercion (REFERENCE §5.3) ----------------
  * The app historically wrote ISO strings; new writes should be Timestamps.
  * Read defensively, write Timestamps. */

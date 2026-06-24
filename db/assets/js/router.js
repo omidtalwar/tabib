@@ -16,21 +16,21 @@ const PAGES = [
 ];
 const DEFAULT_PAGE = "dashboard";
 
-let _ctxBase = null;       // { session }
+let _ctxBase = null;       // { session, pharmacyId }
 let _outlet = null;
 let _onNavigate = null;    // cb(page) for sidebar highlight + title
 let _cleanup = null;
 
-export function startRouter({ outlet, session, onNavigate }) {
+export function startRouter({ outlet, session, pharmacyId, onNavigate }) {
   _outlet = outlet;
-  _ctxBase = { session };
+  _ctxBase = { session, pharmacyId: pharmacyId || session.pharmacyId };
   _onNavigate = onNavigate;
   window.addEventListener("hashchange", handle);
   handle();
 }
 
 export function navigate(page, ...rest) {
-  const pid = _ctxBase.session.pharmacyId;
+  const pid = _ctxBase.pharmacyId;
   location.hash = `#/p/${pid}/${page}${rest.length ? "/" + rest.join("/") : ""}`;
 }
 
@@ -43,9 +43,9 @@ function parseHash() {
 
 async function handle() {
   const { urlPid, page, params } = parseHash();
-  const pid = _ctxBase.session.pharmacyId;
+  const pid = _ctxBase.pharmacyId;
 
-  // Normalize: enforce session pharmacyId + a valid page.
+  // Normalize: enforce the active pharmacyId + a valid page.
   const safePage = PAGES.includes(page) ? page : DEFAULT_PAGE;
   if (urlPid !== pid || !PAGES.includes(page)) {
     location.replace(`#/p/${pid}/${safePage}`);

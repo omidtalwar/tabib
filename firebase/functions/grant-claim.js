@@ -26,13 +26,17 @@ async function run() {
   const email = process.argv[2];
   if (!email) throw new Error("usage: node grant-claim.js <email>");
 
+  const wantId = process.argv[3]; // optional: target a specific pharmacyId
   const user = await auth.getUserByEmail(email);
   const snap = await db.collection("pharmacies").where("ownerUid", "==", user.uid).get();
   if (snap.empty) {
     throw new Error(`No pharmacy has ownerUid == ${user.uid} (${email}). Create one in the app first.`);
   }
 
-  const doc = snap.docs[0];
+  const doc = wantId ? snap.docs.find((d) => d.id === wantId) : snap.docs[0];
+  if (!doc) {
+    throw new Error(`pharmacyId ${wantId} not found among this user's pharmacies.`);
+  }
   const pharmacyId = doc.id;
 
   await auth.setCustomUserClaims(user.uid, { pharmacyId, role: "admin" });

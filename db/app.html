@@ -58,7 +58,7 @@
     import { isConfigured } from "./assets/js/firebase.js";
     import { requirePharmacySession, logout, currentSession } from "./assets/js/session.js";
     import { startRouter, navigate, PAGES } from "./assets/js/router.js";
-    import { pharmacyRef } from "./assets/js/repo.js";
+    import { pharmacyRef, listOwnedPharmacies, getActivePharmacy, setActivePharmacy } from "./assets/js/repo.js";
     import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const ICONS = {
@@ -93,17 +93,41 @@
       const session = await requirePharmacySession();
       if (session.unlinked) return showUnlinked(session.email);
 
+      // Which pharmacies can this owner see, and which is active?
+      const owned = await listOwnedPharmacies(session.uid).catch(() => []);
+      const ownedIds = owned.map((o) => o.id);
+      let active = getActivePharmacy();
+      if (!active || !ownedIds.includes(active)) {
+        active = ownedIds.includes(session.pharmacyId) ? session.pharmacyId : (owned[0]?.id || session.pharmacyId);
+      }
+      setActivePharmacy(active);
+
       // Build sidebar
       const nav = document.getElementById("nav");
       const links = {};
       for (const page of PAGES) {
         const a = document.createElement("a");
-        a.href = `#/p/${session.pharmacyId}/${page}`;
+        a.href = `#/p/${active}/${page}`;
         a.className = "sidebar-link";
         a.innerHTML = `<span aria-hidden="true">${ICONS[page] || "•"}</span><span>${LABELS[page]}</span>`;
         // settings → staff mgmt is admin-only, but the page itself is visible.
         nav.append(a);
         links[page] = a;
+      }
+
+      // Pharmacy switcher (shown only when the owner has more than one).
+      if (owned.length > 1) {
+        const sel = document.createElement("select");
+        sel.className = "mx-3 mb-2 field py-1.5 text-xs";
+        sel.setAttribute("aria-label", "Active pharmacy");
+        for (const o of owned) {
+          const opt = document.createElement("option");
+          opt.value = o.id; opt.textContent = o.name;
+          if (o.id === active) opt.selected = true;
+          sel.append(opt);
+        }
+        sel.addEventListener("change", () => { setActivePharmacy(sel.value); location.reload(); });
+        nav.parentNode.insertBefore(sel, nav);
       }
 
       document.getElementById("userEmail").textContent = session.email || "";
@@ -123,10 +147,10 @@
       document.getElementById("boot").classList.add("hidden");
       document.getElementById("shell").classList.remove("hidden");
 
-      // Live pharmacy name (also proves rules: read allowed only for our pharmacy)
-      onSnapshot(pharmacyRef(session.pharmacyId), (snap) => {
+      // Live name of the ACTIVE pharmacy.
+      onSnapshot(pharmacyRef(active), (snap) => {
         const d = snap.data() || {};
-        document.getElementById("pharmacyName").textContent = d.name || d.pharmacyName || session.pharmacyId;
+        document.getElementById("pharmacyName").textContent = d.name || d.pharmacyName || active;
       }, () => {});
 
       // Online/offline indicator + banner
@@ -146,6 +170,7 @@
       startRouter({
         outlet: document.getElementById("outlet"),
         session,
+        pharmacyId: active,
         onNavigate: (page) => {
           for (const [p, a] of Object.entries(links)) a.classList.toggle("active", p === page);
           document.getElementById("pageTitle").textContent = LABELS[page] || "—";
