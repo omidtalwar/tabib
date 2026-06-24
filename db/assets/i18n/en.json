@@ -485,5 +485,21 @@
   "rx.saved": "Prescription saved",
   "rx.dispense": "Dispense",
   "rx.dispensed": "Sent to POS — confirm the sale to dispense.",
-  "rx.back": "← Back"
+  "rx.back": "← Back",
+
+  "stf.title": "Staff",
+  "stf.invite": "Invite staff",
+  "stf.email": "Email",
+  "stf.password": "Temporary password",
+  "stf.role": "Role",
+  "stf.roleAdmin": "Admin",
+  "stf.roleStaff": "Staff",
+  "stf.colEmail": "Email",
+  "stf.colRole": "Role",
+  "stf.empty": "No staff added yet.",
+  "stf.invited": "Staff member added",
+  "stf.note": "They sign in with this email + password and can change it later.",
+  "stf.errExists": "That email already has an account.",
+  "stf.errPerm": "Only an admin of this pharmacy can add staff.",
+  "stf.errGeneric": "Couldn't add the staff member."
 }

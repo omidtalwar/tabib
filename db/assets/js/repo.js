@@ -8,7 +8,8 @@
  * delete, and defensive date coercion (Timestamp <-> ISO string).
  */
 
-import { db } from "./firebase.js";
+import { db, functions } from "./firebase.js";
+import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
 import {
   collection,
   doc,
@@ -43,6 +44,11 @@ export function docRef(pharmacyId, sub, id) {
 
 export function pharmacyRef(pharmacyId) {
   return doc(db, "pharmacies", pharmacyId);
+}
+
+/** Call a deployed Cloud Function (callable) and return its data. */
+export function callFn(name, data) {
+  return httpsCallable(functions, name)(data).then((r) => r.data);
 }
 
 /* ---------------- multi-pharmacy (owner switcher) ---------------- */
