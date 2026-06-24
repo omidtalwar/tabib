@@ -72,7 +72,7 @@
 
   <script type="module">
     import { isConfigured } from "./assets/js/firebase.js";
-    import { login, loginWithGoogle, completeGoogleRedirect, resetPassword, onSession } from "./assets/js/session.js";
+    import { login, loginWithGoogle, resetPassword, onSession } from "./assets/js/session.js";
     import { toast } from "./assets/js/ui.js";
 
     const form = document.getElementById("loginForm");
@@ -85,16 +85,6 @@
     // case (signed in but no pharmacyId claim) with a clear message, so we
     // redirect on any authenticated session, not only linked ones.
     onSession((s) => { if (s) location.replace("./app.html"); });
-
-    // Finalize a returning Google redirect sign-in and surface any error.
-    completeGoogleRedirect().catch((err) => {
-      const map = {
-        "auth/unauthorized-domain": "This domain isn't authorized for Google sign-in yet.",
-        "auth/account-exists-with-different-credential": "This email already uses a different sign-in method.",
-        "auth/network-request-failed": "No connection. Check your network and try again.",
-      };
-      showError(map[err.code] || "Couldn't finish Google sign-in. Try again.");
-    });
 
     function showError(msg) { errorEl.textContent = msg; errorEl.classList.remove("hidden"); }
     function clearError() { errorEl.classList.add("hidden"); }

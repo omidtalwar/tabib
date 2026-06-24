@@ -15,8 +15,7 @@ import {
   browserSessionPersistence,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 /** @typedef {{ uid:string, email:string|null, pharmacyId:string|null, role:string|null }} Session */
@@ -50,10 +49,11 @@ export async function login(email, password, remember = true) {
 }
 
 /**
- * Sign in with Google via full-page REDIRECT (not popup). Redirect avoids the
- * Cross-Origin-Opener-Policy / window.closed problems that block popups on
- * shared hosting. The page navigates to Google and back; on return,
- * completeGoogleRedirect() finalizes and onAuthStateChanged sets the session.
+ * Sign in with Google via POPUP. Recommended when authDomain differs from the
+ * app's domain (tabib-01.firebaseapp.com vs www.tabib.af): popup keeps the
+ * session on the app origin and avoids the cross-site storage that breaks
+ * signInWithRedirect (especially in incognito). The COOP header
+ * `same-origin-allow-popups` (db/.htaccess) lets the popup complete.
  */
 export async function loginWithGoogle(remember = true) {
   await setPersistence(
@@ -62,15 +62,8 @@ export async function loginWithGoogle(remember = true) {
   );
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  await signInWithRedirect(auth, provider); // navigates away
-}
-
-/**
- * Call once on the login page load to complete a returning Google redirect and
- * surface any error. Resolves null when there's no pending redirect.
- */
-export function completeGoogleRedirect() {
-  return getRedirectResult(auth);
+  await signInWithPopup(auth, provider);
+  // onAuthStateChanged refreshes _session with claims.
 }
 
 export async function logout() {
