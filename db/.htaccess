@@ -28,12 +28,25 @@ DirectoryIndex index.html
 # can't go stale and break imports (e.g. a cached session.js missing a new
 # export). Tighten to a longer max-age once the portal stabilizes for production.
 <IfModule mod_headers.c>
-  <FilesMatch "\.(js|css|html)$">
-    Header set Cache-Control "no-cache, must-revalidate"
+  # Force-override the host's static-asset caching (it sets max-age=14400 on JS,
+  # which serves stale ES modules). unset removes any prior value; `always set`
+  # wins over mod_expires/server config so updated modules load immediately.
+  <FilesMatch "\.(js|mjs|css|html)$">
+    Header unset Cache-Control
+    Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header unset Expires
+    Header always set Expires "0"
+    Header unset Pragma
+    Header always set Pragma "no-cache"
   </FilesMatch>
 
   # Allow Firebase Google sign-in popups to keep their opener relationship.
-  # Without this, a restrictive Cross-Origin-Opener-Policy blocks the SDK's
-  # window.closed poll and the popup sign-in stalls.
   Header set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+</IfModule>
+<IfModule mod_expires.c>
+  # Make sure mod_expires doesn't re-add a long max-age for scripts/styles.
+  ExpiresActive On
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType text/javascript "access plus 0 seconds"
+  ExpiresByType text/css "access plus 0 seconds"
 </IfModule>
