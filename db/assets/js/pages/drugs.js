@@ -116,9 +116,9 @@ export default function render(outlet, ctx) {
   }
   function actions(d) {
     return el("div", { class: "flex justify-end gap-1.5" }, [
-      iconButton(ICON.edit, "Edit", () => drugForm(d)),
-      iconButton(ICON.restock, "Restock", () => restock(d)),
-      iconButton(ICON.remove, "Remove", () => remove(d), { danger: true }),
+      iconButton(ICON.edit, "Edit", () => drugForm(d), { color: "blue" }),
+      iconButton(ICON.restock, "Restock", () => restock(d), { color: "teal" }),
+      iconButton(ICON.remove, "Remove", () => remove(d), { color: "red" }),
     ]);
   }
 

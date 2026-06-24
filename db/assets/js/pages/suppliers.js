@@ -50,7 +50,7 @@ export default function render(outlet, ctx) {
       { label: "Phone", render: (s) => s.phone || "—" },
       { label: "Email", render: (s) => s.email || "—" },
       { label: "Address", render: (s) => s.address || "—" },
-      { label: "", render: (s) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(s))) },
+      { label: "", render: (s) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(s), { color: "blue" })) },
     ], filtered, { empty: "No suppliers yet", emptyHint: "Add your first supplier with the button above." }));
   }
 

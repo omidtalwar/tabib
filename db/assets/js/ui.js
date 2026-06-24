@@ -248,9 +248,11 @@ export function searchInput(placeholder, onInput) {
   return wrap;
 }
 
-/* Icon-only action button. `path` is inner SVG markup (24x24, stroke). */
-export function iconButton(path, title, onClick, { danger = false } = {}) {
-  const b = el("button", { class: "icon-btn" + (danger ? " danger" : ""), title, "aria-label": title, onclick: onClick });
+/* Icon-only action button. `path` is inner SVG markup (24x24, stroke).
+ * opts.color: "blue" | "teal" | "green" | "amber" | "red" for a tinted look. */
+export function iconButton(path, title, onClick, { danger = false, color = "" } = {}) {
+  const cls = "icon-btn" + (color ? " c-" + color : "") + (danger ? " danger" : "");
+  const b = el("button", { class: cls, title, "aria-label": title, onclick: onClick });
   b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
   return b;
 }

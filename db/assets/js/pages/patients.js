@@ -62,7 +62,7 @@ export default function render(outlet, ctx) {
       { label: "Blood", render: (p) => p.bloodGroup || "—" },
       { label: "Allergies", render: (p) => Array.isArray(p.allergies) && p.allergies.length ? p.allergies.join(", ") : "—" },
       { label: "Added", render: (p) => fmtDate(toDate(p.createdAt)) },
-      { label: "", render: (p) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(p))) },
+      { label: "", render: (p) => el("div", { class: "flex justify-end" }, iconButton(ICON.edit, "Edit", () => form(p), { color: "blue" })) },
     ], filtered, { empty: "No patients yet", emptyHint: "Add your first patient with the button above." }));
   }
 
