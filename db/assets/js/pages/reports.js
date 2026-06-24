@@ -76,8 +76,22 @@ export default function render(outlet, ctx) {
         cat[cn].qty += q; cat[cn].rev += rev;
       }
     }
-    const margin = gross ? Math.round((profit / gross) * 100) + "%" : "—";
-    const kpis = [[t("rep.grossSales"), money(gross)], [t("rep.netProfit"), money(profit)], [t("rep.margin"), margin], [t("rep.sales"), String(rs.length)], [t("rep.itemsSold"), String(units)]];
+    // Net returns out of revenue / profit / units / product / category / day.
+    let retTotal = 0, retUnits = 0, retProfit = 0;
+    for (const r of rangeReturns()) {
+      retTotal += num(r.total);
+      const d = toDate(r.date); const key = d ? d.toISOString().slice(0, 10) : "—";
+      if (day[key]) day[key].value -= num(r.total);
+      for (const it of parseItems(r)) {
+        const q = num(it.quantity), rev = num(it.unitPrice) * q; retUnits += q;
+        const dr = dm[it.drugId]; const cost = (dr ? num(dr.unitPrice) : 0) * q; retProfit += rev - cost;
+        if (prod[it.drugName]) { prod[it.drugName].qty -= q; prod[it.drugName].rev -= rev; prod[it.drugName].profit -= rev - cost; }
+        const cn = dr ? dr.category || "Other" : "Other"; if (cat[cn]) { cat[cn].qty -= q; cat[cn].rev -= rev; }
+      }
+    }
+    const netSales = gross - retTotal, netProfit = profit - retProfit, netUnits = units - retUnits;
+    const margin = netSales ? Math.round((netProfit / netSales) * 100) + "%" : "—";
+    const kpis = [[t("rep.grossSales"), money(gross)], [t("rep.returns"), money(retTotal)], [t("rep.netSales"), money(netSales)], [t("rep.netProfit"), money(netProfit)], [t("rep.itemsSold"), String(netUnits)]];
     const days = Object.keys(day).sort().map((k) => day[k]).slice(-31);
     const prodRows = Object.entries(prod).sort((a, b) => b[1].rev - a[1].rev);
 

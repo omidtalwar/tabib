@@ -10,7 +10,7 @@ import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
-  const state = { drugs: null, sales: null, expenses: null };
+  const state = { drugs: null, sales: null, expenses: null, returns: null };
   const go = (page) => { location.hash = `#/p/${pid}/${page}`; };
 
   const root = el("div", { class: "space-y-5" }, loading());
@@ -30,6 +30,16 @@ export default function render(outlet, ctx) {
       for (const it of items(s)) { const dr = dm[it.drugId]; profit += num(it.subtotal) - (dr ? num(dr.unitPrice) : 0) * num(it.quantity); }
     }
     return { revenue, profit, cash, count: list.length };
+  }
+  // Returns reverse revenue/profit/units — netted into every sales figure so
+  // totals, profit and charts stay consistent after a refund.
+  function returnStats(list, dm) {
+    let revenue = 0, profit = 0, units = 0;
+    for (const r of list) {
+      revenue += num(r.total);
+      for (const it of items(r)) { const q = num(it.quantity), rev = num(it.unitPrice) * q; units += q; const dr = dm[it.drugId]; profit += rev - (dr ? num(dr.unitPrice) : 0) * q; }
+    }
+    return { revenue, profit, units };
   }
   const pct = (now, prev) => (prev > 0 ? Math.round(((now - prev) / prev) * 100) : (now > 0 ? 100 : 0));
 
@@ -85,7 +95,7 @@ export default function render(outlet, ctx) {
 
   /* ---------- draw ---------- */
   function draw() {
-    if (!state.drugs || !state.sales || !state.expenses) return;
+    if (!state.drugs || !state.sales || !state.expenses || !state.returns) return;
     const dm = drugMap();
     const now = new Date();
     const today0 = startOf(now);
@@ -95,6 +105,15 @@ export default function render(outlet, ctx) {
 
     const todayS = salesStats(state.sales.filter(inToday), dm);
     const yestS = salesStats(state.sales.filter(inYest), dm);
+
+    // Net returns out of revenue/profit so the numbers stay correct after refunds.
+    const inDateR = (r, from, to) => { const d = toDate(r.date); return d && d >= from && (!to || d < to); };
+    const todayRet = returnStats(state.returns.filter((r) => inDateR(r, today0)), dm);
+    const yestRet = returnStats(state.returns.filter((r) => inDateR(r, yest0, today0)), dm);
+    const todayRevenue = todayS.revenue - todayRet.revenue;
+    const todayProfit = todayS.profit - todayRet.profit;
+    const yestRevenue = yestS.revenue - yestRet.revenue;
+    const yestProfit = yestS.profit - yestRet.profit;
 
     // Expenses today/yesterday
     const expSum = (pred) => state.expenses.filter((e) => e.isActive !== false && pred(e)).reduce((a, e) => a + num(e.amount), 0);
@@ -124,8 +143,9 @@ export default function render(outlet, ctx) {
       const d1 = new Date(d0); d1.setDate(d1.getDate() + 1);
       const dayS = state.sales.filter((s) => { const t = toDate(s.createdAt); return t && t >= d0 && t < d1; });
       const st = salesStats(dayS, dm);
-      days7.push(st);
-      chart7.push({ label: fmtDate(d0).slice(5), value: Math.round(st.revenue) });
+      const dr = returnStats(state.returns.filter((r) => { const t = toDate(r.date); return t && t >= d0 && t < d1; }), dm);
+      days7.push({ revenue: st.revenue - dr.revenue, profit: st.profit - dr.profit });
+      chart7.push({ label: fmtDate(d0).slice(5), value: Math.round(st.revenue - dr.revenue) });
     }
     const expDays7 = [];
     for (let i = 6; i >= 0; i--) {
@@ -155,8 +175,8 @@ export default function render(outlet, ctx) {
     ]);
 
     const kpis = el("div", { class: "grid grid-cols-2 gap-3 lg:grid-cols-6" }, [
-      kpiCard({ label: t("dash.kpiSales"), value: money(todayS.revenue), change: pct(todayS.revenue, yestS.revenue), spark: days7.map((x) => x.revenue), sparkColor: "#0EA59B" }),
-      kpiCard({ label: t("dash.kpiProfit"), value: money(todayS.profit), change: pct(todayS.profit, yestS.profit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }),
+      kpiCard({ label: t("dash.kpiSales"), value: money(todayRevenue), change: pct(todayRevenue, yestRevenue), spark: days7.map((x) => x.revenue), sparkColor: "#0EA59B" }),
+      kpiCard({ label: t("dash.kpiProfit"), value: money(todayProfit), change: pct(todayProfit, yestProfit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }),
       kpiCard({ label: t("dash.kpiInvoices"), value: String(todayS.count), change: pct(todayS.count, yestS.count) }),
       kpiCard({ label: t("dash.kpiCash"), value: money(cashDrawer) }),
       kpiCard({ label: t("dash.kpiStock"), value: money(stockValue) }),
@@ -202,5 +222,6 @@ export default function render(outlet, ctx) {
   const offD = watch(pid, "drugs", { onData: (d) => { state.drugs = d; draw(); }, onError: () => { state.drugs = []; draw(); } });
   const offS = watch(pid, "sales", { onData: (d) => { state.sales = d; draw(); }, onError: () => { state.sales = []; draw(); } });
   const offE = watch(pid, "expenses", { onData: (d) => { state.expenses = d; draw(); }, onError: () => { state.expenses = []; draw(); } });
-  return () => { offD(); offS(); offE(); };
+  const offR = watch(pid, "returns", { onData: (d) => { state.returns = d; draw(); }, onError: () => { state.returns = []; draw(); } });
+  return () => { offD(); offS(); offE(); offR(); };
 }

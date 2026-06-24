@@ -107,3 +107,22 @@
 .anim-pop { animation: tabib-pop .2s cubic-bezier(.21, 1, .21, 1) both; }
 .anim-fade { animation: tabib-fade .15s ease both; }
 @media (prefers-reduced-motion: reduce) { .anim-pop, .anim-fade { animation: none; } }
+
+/* ---- Floating action button (most-used page) ---- */
+.fab {
+  position: fixed; bottom: 1.25rem; inset-inline-end: 1.25rem; z-index: 40;
+  display: inline-flex; align-items: center; border-radius: 9999px;
+  background: linear-gradient(135deg, #12b3a6, #0A7F77); color: #fff;
+  box-shadow: 0 14px 30px -10px rgba(10, 127, 119, .65);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.fab:hover { transform: translateY(-2px); }
+.fab-ico { display: grid; height: 3.25rem; width: 3.25rem; flex: none; place-items: center; }
+.fab-ico svg { height: 1.5rem; width: 1.5rem; }
+.fab-label {
+  max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+  font-weight: 700; font-size: .9rem;
+  transition: max-width .35s cubic-bezier(.2,.8,.2,1), opacity .25s ease, padding .35s ease;
+}
+.fab.show .fab-label, .fab:hover .fab-label { max-width: 12rem; opacity: 1; padding-inline-end: 1.1rem; padding-inline-start: .15rem; }
+@media (prefers-reduced-motion: reduce) { .fab, .fab-label { transition: none; } }
