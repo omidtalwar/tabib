@@ -4,6 +4,7 @@
   },
   "functions": {
     "source": "functions",
+    "codebase": "pharmacy",
     "runtime": "nodejs20"
   }
 }
