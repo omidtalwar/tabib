@@ -40,6 +40,11 @@
 
   /* Filter dropdown (toolbar). */
   .filter-select { @apply rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-medium text-ink hover:border-brand-400; }
+
+  /* Pharmacy switcher chip (shop icon + name) in the header. */
+  .switcher { @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 hover:border-brand-400; }
+  .switcher > svg { @apply h-[18px] w-[18px] flex-none text-brand-600; }
+  .switch-select { @apply max-w-[170px] cursor-pointer appearance-none border-0 bg-transparent p-0 pe-1 text-sm font-semibold text-ink focus:outline-none focus:ring-0; }
   .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700; }
   .btn-ghost { @apply btn border border-line bg-white text-ink hover:border-brand-400 hover:text-brand-700; }
   .btn-danger { @apply btn bg-danger text-white hover:brightness-95; }

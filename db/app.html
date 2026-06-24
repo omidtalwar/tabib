@@ -150,19 +150,35 @@
         links[page] = a;
       }
 
-      // Pharmacy switcher in the header (only when the owner has more than one).
-      if (owned.length > 1) {
-        const sel = document.createElement("select");
-        sel.className = "rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-ink";
-        sel.setAttribute("aria-label", "Active pharmacy");
-        for (const o of owned) {
-          const opt = document.createElement("option");
-          opt.value = o.id; opt.textContent = o.name;
-          if (o.id === active) opt.selected = true;
-          sel.append(opt);
+      // Pharmacy switcher chip in the header: shop icon + name (dropdown if >1).
+      {
+        const wrap = document.createElement("div");
+        wrap.className = "switcher";
+        wrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l1.2-3.2A1 1 0 0 1 5.1 3h13.8a1 1 0 0 1 .9.8L21 7"/><path d="M4 7v12a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7"/><path d="M3 7h18"/><path d="M9 20v-6h6v6"/></svg>';
+        const activeName = (owned.find((o) => o.id === active) || {}).name || "Pharmacy";
+        if (owned.length > 1) {
+          const sel = document.createElement("select");
+          sel.className = "switch-select";
+          sel.setAttribute("aria-label", "Active pharmacy");
+          for (const o of owned) {
+            const opt = document.createElement("option");
+            opt.value = o.id; opt.textContent = o.name;
+            if (o.id === active) opt.selected = true;
+            sel.append(opt);
+          }
+          sel.addEventListener("change", () => { setActivePharmacy(sel.value); location.reload(); });
+          wrap.append(sel);
+          const chev = document.createElement("span");
+          chev.className = "flex-none text-soft";
+          chev.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>';
+          wrap.append(chev);
+        } else {
+          const span = document.createElement("span");
+          span.className = "max-w-[170px] truncate text-sm font-semibold text-ink";
+          span.textContent = activeName;
+          wrap.append(span);
         }
-        sel.addEventListener("change", () => { setActivePharmacy(sel.value); location.reload(); });
-        document.getElementById("switcherHost").append(sel);
+        document.getElementById("switcherHost").append(wrap);
       }
 
       document.getElementById("userEmail").textContent = session.email || "";
