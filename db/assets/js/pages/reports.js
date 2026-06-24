@@ -21,7 +21,7 @@ const PRESETS = [
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
-  let drugs = null, sales = null;
+  let drugs = null, sales = null, expenses = null;
   let tab = "sales", preset = "month", expiryWindow = 30;
   let fromPick = null, toPick = null; // shamsiDate pickers when custom
   const current = {}; // { title, kpis:[[label,value]], csv:[[...]] } for export/print
@@ -29,9 +29,9 @@ export default function render(outlet, ctx) {
   const root = el("div", { class: "space-y-5" }, loading("Loading reports…"));
   outlet.append(root);
 
-  Promise.all([readAll(pid, "drugs"), readAll(pid, "sales")])
-    .then(([d, s]) => { drugs = d; sales = s; paint(); })
-    .catch(() => { drugs = []; sales = []; paint(); });
+  Promise.all([readAll(pid, "drugs"), readAll(pid, "sales"), readAll(pid, "expenses")])
+    .then(([d, s, e]) => { drugs = d; sales = s; expenses = e; paint(); })
+    .catch(() => { drugs = []; sales = []; expenses = []; paint(); });
 
   /* ---------- date range ---------- */
   function range() {
@@ -52,6 +52,8 @@ export default function render(outlet, ctx) {
   }
   const inRange = (s) => { const d = toDate(s.createdAt); if (!d) return false; const { from, to } = range(); return d >= from && d <= to; };
   const rangeSales = () => sales.filter(inRange);
+  const inRangeE = (e) => { const d = toDate(e.date); if (!d) return false; const { from, to } = range(); return d >= from && d <= to; };
+  const rangeExpenses = () => expenses.filter((e) => e.isActive !== false && inRangeE(e));
   const parseItems = (s) => { try { return JSON.parse(s.itemsJson || "[]"); } catch { return []; } };
   const drugMap = () => Object.fromEntries(drugs.map((d) => [d.firestoreId || d.id, d]));
   const num = (x) => Number(x) || 0;
@@ -186,23 +188,37 @@ export default function render(outlet, ctx) {
 
   function financialTab() {
     const rs = rangeSales(), dm = drugMap();
-    let revenue = 0, cogs = 0, discounts = 0, insurance = 0, receivables = 0;
+    let revenue = 0, cogs = 0, receivables = 0, cashSales = 0;
     for (const s of rs) {
-      revenue += num(s.total); discounts += num(s.discountAmount); insurance += num(s.insuranceCoverage);
+      revenue += num(s.total);
       if ((s.paymentMethod || "") === "credit") receivables += num(s.total);
+      if ((s.paymentMethod || "") === "cash") cashSales += num(s.total);
       for (const it of parseItems(s)) { const dr = dm[it.drugId]; cogs += (dr ? num(dr.unitPrice) : 0) * num(it.quantity); }
     }
-    const gross = revenue - cogs; const margin = revenue ? Math.round((gross / revenue) * 100) + "%" : "—";
-    const kpis = [["Revenue", money(revenue)], ["COGS", money(cogs)], ["Gross profit", money(gross)], ["Margin", margin], ["Receivables (credit)", money(receivables)]];
+    const gross = revenue - cogs;
+    const exps = rangeExpenses();
+    let totalExp = 0, cashExp = 0; const expByCat = {};
+    for (const e of exps) { const a = num(e.amount); totalExp += a; if ((e.paymentMethod || "") === "cash") cashExp += a; expByCat[e.category || "Miscellaneous"] = (expByCat[e.category || "Miscellaneous"] || 0) + a; }
+    const net = gross - totalExp;
+    const margin = revenue ? Math.round((net / revenue) * 100) + "%" : "—";
+    const netCash = cashSales - cashExp;
+
+    const kpis = [["Revenue", money(revenue)], ["Gross profit", money(gross)], ["Expenses", money(totalExp)], ["Net profit", money(net)], ["Net margin", margin]];
     current.title = "Financial report (P&L)"; current.kpis = kpis;
-    current.csv = [["Metric", "Amount"], ["Revenue", revenue.toFixed(2)], ["Cost of goods sold", cogs.toFixed(2)], ["Gross profit", gross.toFixed(2)], ["Discounts given", discounts.toFixed(2)], ["Insurance covered", insurance.toFixed(2)], ["Outstanding credit (receivables)", receivables.toFixed(2)]];
+    current.csv = [["Metric", "Amount"], ["Revenue", revenue.toFixed(2)], ["Cost of goods sold", cogs.toFixed(2)], ["Gross profit", gross.toFixed(2)], ["Total expenses", totalExp.toFixed(2)], ["Net profit", net.toFixed(2)], ["Outstanding credit (receivables)", receivables.toFixed(2)], ["Cash sales", cashSales.toFixed(2)], ["Cash expenses", cashExp.toFixed(2)], ["Net cash movement", netCash.toFixed(2)]];
 
     const pl = table([{ label: "Metric", render: (r) => r[0] }, { label: "Amount", render: (r) => money(r[1]) }],
-      [["Revenue", revenue], ["Cost of goods sold", cogs], ["Gross profit", gross], ["Discounts given", discounts], ["Insurance covered", insurance], ["Outstanding credit", receivables]], {});
+      [["Revenue", revenue], ["Cost of goods sold", cogs], ["Gross profit", gross], ["Total expenses", -totalExp], ["Net profit", net], ["Outstanding credit", receivables]], {});
+    const catRows = Object.entries(expByCat).sort((a, b) => b[1] - a[1]);
+    const expTable = table([{ label: "Category", render: (r) => r[0] }, { label: "Amount", render: (r) => money(r[1]) }], catRows, { empty: "No expenses in range." });
+    const cashTable = table([{ label: "Cash drawer", render: (r) => r[0] }, { label: "Amount", render: (r) => money(r[1]) }],
+      [["Cash sales (in)", cashSales], ["Cash expenses (out)", cashExp], ["Net cash movement", netCash]], {});
+
     return el("div", { class: "space-y-5" }, [
       kpiRow(kpis),
       sectionCard("Profit & Loss", pl),
-      el("div", { class: "rounded-xl border border-warn/30 bg-warn/10 p-4 text-sm text-ink" }, "Payables, expenses and cash reconciliation need purchase/expense data the app doesn't record yet."),
+      el("div", { class: "grid gap-5 lg:grid-cols-2" }, [sectionCard("Expenses by category", expTable), sectionCard("Cash reconciliation", cashTable)]),
+      el("div", { class: "rounded-xl border border-line bg-white p-4 text-xs text-soft" }, "Cash reconciliation excludes opening balance and refunds (not tracked yet). Net cash movement = cash sales − cash expenses."),
     ]);
   }
 

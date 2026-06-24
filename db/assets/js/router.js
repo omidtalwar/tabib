@@ -12,7 +12,7 @@
 
 const PAGES = [
   "dashboard", "drugs", "inventory", "sales",
-  "prescriptions", "patients", "suppliers", "reports", "settings",
+  "prescriptions", "patients", "suppliers", "expenses", "reports", "settings",
 ];
 const DEFAULT_PAGE = "dashboard";
 

@@ -259,7 +259,7 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
 
     const body = el("div", { class: "grid gap-3 sm:grid-cols-2" }, fields.map((f) => {
       const id = `f_${f.name}`;
-      let input, jsel = null;
+      let input, jsel = null, datalistNode = null;
       const v = values[f.name];
       if (f.type === "select") {
         input = el("select", { id, class: "field" }, (f.options || []).map((o) => {
@@ -276,6 +276,11 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
         const sd = shamsiDate(v);
         input = sd.node;
         jsel = sd;
+      } else if (f.type === "combo") {
+        // free text with suggestions (editable categories etc.)
+        const listId = id + "_list";
+        input = el("input", { id, class: "field", placeholder: f.placeholder || "", value: v != null ? String(v) : "", list: listId, autocomplete: "off" });
+        datalistNode = el("datalist", { id: listId }, (f.options || []).map((o) => el("option", { value: o.value ?? o })));
       } else {
         input = el("input", {
           id, type: f.type || "text", class: "field",
@@ -290,6 +295,7 @@ export function formModal({ title, fields, values = {}, submitLabel = "Save", on
         f.type === "checkbox"
           ? el("label", { class: "flex items-center gap-2 text-sm text-ink" }, [input, f.help || ""])
           : input,
+        datalistNode,
         f.help && f.type !== "checkbox" ? el("p", { class: "mt-1 text-xs text-soft" }, f.help) : null,
       ]);
       return wrap;
