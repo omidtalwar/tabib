@@ -453,5 +453,20 @@
   "rep.payables": "Payables",
   "rep.purchased": "Purchased",
   "rep.purDue": "Due",
-  "rep.noPurchases": "No purchases in this range."
+  "rep.noPurchases": "No purchases in this range.",
+
+  "cr.tabPatients": "Patients",
+  "cr.tabCredit": "Credit",
+  "cr.title": "Outstanding credit (receivables)",
+  "cr.colCustomer": "Customer",
+  "cr.colSales": "Credit sales",
+  "cr.colPaid": "Paid",
+  "cr.colOutstanding": "Outstanding",
+  "cr.record": "Record payment",
+  "cr.recordTitle": "Record payment — {name}",
+  "cr.amount": "Amount",
+  "cr.method": "Method",
+  "cr.note": "Note",
+  "cr.recorded": "Payment recorded",
+  "cr.none": "No outstanding credit — everyone's settled."
 }

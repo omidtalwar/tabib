@@ -453,5 +453,20 @@
   "rep.payables": "پورونه",
   "rep.purchased": "اخیستل شوی",
   "rep.purDue": "پاتې",
-  "rep.noPurchases": "پدې موده کې پیرودنه نشته."
+  "rep.noPurchases": "پدې موده کې پیرودنه نشته.",
+
+  "cr.tabPatients": "ناروغان",
+  "cr.tabCredit": "پور",
+  "cr.title": "پاتې پورونه (ترلاسه‌کیدونکي)",
+  "cr.colCustomer": "پیرودونکی",
+  "cr.colSales": "پور پلور",
+  "cr.colPaid": "ورکړل شوی",
+  "cr.colOutstanding": "پاتې",
+  "cr.record": "تادیه ثبت کړئ",
+  "cr.recordTitle": "تادیه ثبت — {name}",
+  "cr.amount": "مقدار",
+  "cr.method": "طریقه",
+  "cr.note": "یادښت",
+  "cr.recorded": "تادیه ثبت شوه",
+  "cr.none": "هیڅ پاتې پور نشته — ټول تسویه شوي."
 }

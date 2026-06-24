@@ -453,5 +453,20 @@
   "rep.payables": "بدهی‌ها",
   "rep.purchased": "خریداری‌شده",
   "rep.purDue": "باقی‌مانده",
-  "rep.noPurchases": "در این بازه خریدی نیست."
+  "rep.noPurchases": "در این بازه خریدی نیست.",
+
+  "cr.tabPatients": "مریضان",
+  "cr.tabCredit": "قرض",
+  "cr.title": "قرض‌های معوقه (دریافتنی)",
+  "cr.colCustomer": "مشتری",
+  "cr.colSales": "فروش نسیه",
+  "cr.colPaid": "پرداخت‌شده",
+  "cr.colOutstanding": "باقی‌مانده",
+  "cr.record": "ثبت پرداخت",
+  "cr.recordTitle": "ثبت پرداخت — {name}",
+  "cr.amount": "مبلغ",
+  "cr.method": "روش",
+  "cr.note": "یادداشت",
+  "cr.recorded": "پرداخت ثبت شد",
+  "cr.none": "قرض معوقه‌ای نیست — همه تسویه شده‌اند."
 }

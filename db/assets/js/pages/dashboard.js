@@ -10,7 +10,7 @@ import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
-  const state = { drugs: null, sales: null, expenses: null, returns: null };
+  const state = { drugs: null, sales: null, expenses: null, returns: null, payments: null };
   const go = (page) => { location.hash = `#/p/${pid}/${page}`; };
 
   const root = el("div", { class: "space-y-5" }, loading());
@@ -95,7 +95,7 @@ export default function render(outlet, ctx) {
 
   /* ---------- draw ---------- */
   function draw() {
-    if (!state.drugs || !state.sales || !state.expenses || !state.returns) return;
+    if (!state.drugs || !state.sales || !state.expenses || !state.returns || !state.payments) return;
     const dm = drugMap();
     const now = new Date();
     const today0 = startOf(now);
@@ -134,7 +134,8 @@ export default function render(outlet, ctx) {
     const expiring = withDays.filter((x) => x.n >= 0 && x.n <= 30).sort((a, b) => a.n - b.n);
     const expired = withDays.filter((x) => x.n < 0);
     const expWeek = withDays.filter((x) => x.n >= 0 && x.n <= 7).length;
-    const creditOutstanding = state.sales.reduce((a, s) => a + ((s.paymentMethod || "") === "credit" ? num(s.total) : 0), 0);
+    const creditPaid = state.payments.reduce((a, p) => a + num(p.amount), 0);
+    const creditOutstanding = state.sales.reduce((a, s) => a + ((s.paymentMethod || "") === "credit" ? num(s.total) : 0), 0) - creditPaid;
 
     // 7-day sparklines / trend chart
     const days7 = [], chart7 = [];
@@ -223,5 +224,6 @@ export default function render(outlet, ctx) {
   const offS = watch(pid, "sales", { onData: (d) => { state.sales = d; draw(); }, onError: () => { state.sales = []; draw(); } });
   const offE = watch(pid, "expenses", { onData: (d) => { state.expenses = d; draw(); }, onError: () => { state.expenses = []; draw(); } });
   const offR = watch(pid, "returns", { onData: (d) => { state.returns = d; draw(); }, onError: () => { state.returns = []; draw(); } });
-  return () => { offD(); offS(); offE(); offR(); };
+  const offP = watch(pid, "customer_payments", { onData: (d) => { state.payments = d; draw(); }, onError: () => { state.payments = []; draw(); } });
+  return () => { offD(); offS(); offE(); offR(); offP(); };
 }
