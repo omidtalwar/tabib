@@ -7,6 +7,8 @@
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#0EA59B" />
   <link rel="icon" href="../assets/icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="../assets/icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -60,6 +62,11 @@
     import { startRouter, navigate, PAGES } from "./assets/js/router.js";
     import { pharmacyRef, listOwnedPharmacies, getActivePharmacy, setActivePharmacy } from "./assets/js/repo.js";
     import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    // PWA: keep the installed app shell available offline.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("SW register failed", e));
+    }
 
     const ICONS = {
       dashboard: "▦", drugs: "💊", inventory: "📦", sales: "🧾",

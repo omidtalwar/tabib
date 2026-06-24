@@ -7,6 +7,8 @@
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#0EA59B" />
   <link rel="icon" href="../assets/icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="../assets/icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -64,6 +66,11 @@
         Continue with Google
       </button>
     </form>
+
+    <button id="installBtn" class="btn-ghost w-full mt-4 hidden">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Install app
+    </button>
 
     <p class="mt-6 text-center text-xs text-soft">
       Pharmacy staff only. Access is granted by your pharmacy admin.
@@ -144,6 +151,28 @@
         showError("Couldn't send the reset email. Check the address.");
       }
     });
+
+    // PWA: register the service worker (offline + installable).
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("SW register failed", e));
+    }
+
+    // PWA install prompt → custom button (Android/desktop Chrome/Edge).
+    let deferredPrompt = null;
+    const installBtn = document.getElementById("installBtn");
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove("hidden");
+    });
+    installBtn.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.classList.add("hidden");
+    });
+    window.addEventListener("appinstalled", () => installBtn.classList.add("hidden"));
   </script>
 </body>
 </html>
