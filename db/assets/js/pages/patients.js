@@ -1,18 +1,30 @@
-/** Patients — CRUD, search, detail with past sales + prescriptions. */
-import { pendingNotice } from "./_scaffold.js";
+/** Patients — live list with search (read-only; CRUD is Phase 3).
+ * Fields mirror patient_isar.dart (docs/REFERENCE.md). */
+import { watch, toDate } from "../repo.js";
+import { el, table, searchInput, toolbar, fmtDate, loading } from "../ui.js";
 
-export default function render(outlet) {
-  outlet.append(pendingNotice("Patients", {
-    responsibility:
-      "Create/read/update/delete patients with search by name/contact. Patient detail shows past sales and prescriptions for that patient.",
-    fields: [
-      "fullName", "phone", "dateOfBirth (ISO|null)", "gender", "address",
-      "allergies (array)", "bloodGroup", "emergencyContact", "insuranceId", "notes",
-      "createdAt (ISO)", "firestoreId", "id", "isDirty",
-    ],
-    operations: [
-      "watch('patients') with fullName/phone search",
-      "detail: query sales + prescriptions by patientId",
-    ],
-  }));
+export default function render(outlet, ctx) {
+  let rows = null, q = "";
+  const host = el("div", {}, loading());
+  outlet.append(el("div", { class: "space-y-5" }, [
+    toolbar("Patients", searchInput("Search name or phone…", (v) => { q = v; paint(); })),
+    host,
+  ]));
+
+  function paint() {
+    if (!rows) return;
+    const filtered = rows
+      .filter((p) => !q || [p.fullName, p.phone].some((x) => (x || "").toLowerCase().includes(q)))
+      .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
+    host.replaceChildren(table([
+      { label: "Name", render: (p) => p.fullName || "—" },
+      { label: "Phone", render: (p) => p.phone || "—" },
+      { label: "Gender", render: (p) => p.gender || "—" },
+      { label: "Blood", render: (p) => p.bloodGroup || "—" },
+      { label: "Allergies", render: (p) => Array.isArray(p.allergies) && p.allergies.length ? p.allergies.join(", ") : "—" },
+      { label: "Added", render: (p) => fmtDate(toDate(p.createdAt)) },
+    ], filtered, { empty: "No patients yet", emptyHint: "Patients added in the app appear here." }));
+  }
+
+  return watch(ctx.pharmacyId, "patients", { onData: (d) => { rows = d; paint(); }, onError: () => { rows = []; paint(); } });
 }

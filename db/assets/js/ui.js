@@ -126,3 +126,53 @@ export function emptyState(title, hint) {
     hint ? el("p", { class: "mt-1 text-sm text-soft" }, hint) : null,
   ]);
 }
+
+/* ---------------- data table ----------------
+ * columns: [{ label, render(row)->(node|string), html?:bool }]
+ * A render() returning a DOM node is appended; a string is set as text unless
+ * the column sets html:true (used for badge markup). */
+export function table(columns, rows, { empty = "Nothing here yet", emptyHint = "" } = {}) {
+  if (!rows || !rows.length) return emptyState(empty, emptyHint);
+  const head = el("tr", {}, columns.map((c) => el("th", {}, c.label)));
+  const body = rows.map((r) =>
+    el("tr", {}, columns.map((c) => {
+      const td = el("td", {});
+      const v = c.render ? c.render(r) : "";
+      if (v == null || v === "") td.textContent = "—";
+      else if (v.nodeType) td.append(v);
+      else if (c.html) td.innerHTML = v;
+      else td.textContent = String(v);
+      return td;
+    }))
+  );
+  return el("div", { class: "card overflow-x-auto" }, [
+    el("table", { class: "table" }, [el("thead", {}, head), el("tbody", {}, body)]),
+  ]);
+}
+
+/* A search input that filters as you type; calls onInput(value). */
+export function searchInput(placeholder, onInput) {
+  return el("input", {
+    class: "field max-w-sm", type: "search", placeholder,
+    oninput: (e) => onInput(e.target.value.trim().toLowerCase()),
+  });
+}
+
+/* Section header row with a title and optional right-side node. */
+export function toolbar(title, right) {
+  return el("div", { class: "flex flex-wrap items-center justify-between gap-3" }, [
+    el("h2", { class: "text-lg font-bold text-ink" }, title),
+    right || null,
+  ]);
+}
+
+/* Loading + error helpers for live views. */
+export function loading(text = "Loading…") {
+  return el("div", { class: "card text-center py-10 text-sm text-soft" }, text);
+}
+export function errorCard(text) {
+  return el("div", { class: "card" }, [
+    el("p", { class: "font-semibold text-danger" }, "Couldn't load this data."),
+    el("p", { class: "mt-1 text-sm text-soft" }, text || "Check your connection and try again."),
+  ]);
+}
