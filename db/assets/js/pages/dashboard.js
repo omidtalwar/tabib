@@ -1,100 +1,205 @@
 /**
- * Dashboard — live KPIs, 14-day revenue, top drugs, recent sales.
- * Reads pharmacies/{id}/drugs and /sales in real time and recomputes on change.
- * Field shapes mirror the app's Isar models (docs/REFERENCE.md): dates are ISO
- * strings, sale.items live in `itemsJson` (a JSON string), money in `total`.
+ * Dashboard — "what needs my attention today?" Live (onSnapshot) over drugs,
+ * sales and expenses: greeting + summary, KPI cards with day-over-day trend +
+ * sparklines, a clickable alert strip, two charts, three lists, quick actions.
+ * Every card/alert deep-links to the relevant page.
  */
 import { watch, toDate } from "../repo.js";
-import { el, money, fmtDate, daysUntil, stockStatus, expiryStatus } from "../ui.js";
-
-function parseItems(sale) {
-  try { return JSON.parse(sale.itemsJson || "[]"); } catch { return []; }
-}
-function sameDay(d, ref) {
-  return d && d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
-}
-function sameMonth(d, ref) {
-  return d && d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
-}
+import { el, money, fmtDate, daysUntil, sparkline, barChart, loading } from "../ui.js";
 
 export default function render(outlet, ctx) {
-  const state = { drugs: null, sales: null };
+  const pid = ctx.pharmacyId;
+  const state = { drugs: null, sales: null, expenses: null };
+  const go = (page) => { location.hash = `#/p/${pid}/${page}`; };
 
-  const root = el("div", { class: "space-y-5" }, "Loading…");
+  const root = el("div", { class: "space-y-5" }, loading());
   outlet.append(root);
 
-  function draw() {
-    if (!state.drugs || !state.sales) return;
-    const now = new Date();
-    const drugs = state.drugs;
-    const sales = state.sales;
+  /* ---------- helpers ---------- */
+  const num = (x) => Number(x) || 0;
+  const items = (s) => { try { return JSON.parse(s.itemsJson || "[]"); } catch { return []; } };
+  const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const drugMap = () => Object.fromEntries((state.drugs || []).map((d) => [d.firestoreId || d.id, d]));
 
-    const active = drugs.filter((d) => d.isActive !== false);
-    const lowStock = active.filter((d) => (d.stockQuantity ?? 0) > 0 && (d.stockQuantity ?? 0) <= (d.reorderThreshold ?? 0));
-    const outStock = active.filter((d) => (d.stockQuantity ?? 0) <= 0);
-    const expiring = active.filter((d) => { const n = daysUntil(toDate(d.expiryDate)); return n != null && n >= 0 && n <= 30; });
-
-    const todayRev = sales.filter((s) => sameDay(toDate(s.createdAt), now)).reduce((a, s) => a + (Number(s.total) || 0), 0);
-    const monthRev = sales.filter((s) => sameMonth(toDate(s.createdAt), now)).reduce((a, s) => a + (Number(s.total) || 0), 0);
-
-    const kpis = [
-      ["Today's revenue", money(todayRev)],
-      ["This month", money(monthRev)],
-      ["Low stock", String(lowStock.length)],
-      ["Expiring ≤30d", String(expiring.length)],
-      ["Out of stock", String(outStock.length)],
-      ["Total drugs", String(active.length)],
-    ];
-
-    // Top 5 drugs by units sold this month.
-    const counts = {};
-    for (const s of sales) {
-      if (!sameMonth(toDate(s.createdAt), now)) continue;
-      for (const it of parseItems(s)) counts[it.drugName || "—"] = (counts[it.drugName || "—"] || 0) + (Number(it.quantity) || 0);
+  function salesStats(list, dm) {
+    let revenue = 0, profit = 0, cash = 0;
+    for (const s of list) {
+      revenue += num(s.total);
+      if ((s.paymentMethod || "") === "cash") cash += num(s.total);
+      for (const it of items(s)) { const dr = dm[it.drugId]; profit += num(it.subtotal) - (dr ? num(dr.unitPrice) : 0) * num(it.quantity); }
     }
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return { revenue, profit, cash, count: list.length };
+  }
+  const pct = (now, prev) => (prev > 0 ? Math.round(((now - prev) / prev) * 100) : (now > 0 ? 100 : 0));
 
-    // Recent sales (last 10).
-    const recent = [...sales].sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0)).slice(0, 10);
-
-    const grid = el("div", { class: "grid grid-cols-2 gap-4 lg:grid-cols-6" },
-      kpis.map(([label, value]) => el("div", { class: "kpi" }, [
+  function kpiCard({ label, value, change, goodWhenUp = true, spark, sparkColor }) {
+    const up = change > 0, flat = change === 0;
+    const good = goodWhenUp ? up : !up;
+    const arrow = flat ? "" : up ? "▲" : "▼";
+    const trend = change == null ? null : el("span", {
+      class: "inline-flex items-center gap-1 text-xs font-semibold " + (flat ? "text-soft" : good ? "text-ok" : "text-danger"),
+    }, `${arrow} ${Math.abs(change)}% vs yest.`);
+    return el("div", { class: "kpi" }, [
+      el("span", { class: "kpi-label" }, label),
+      el("div", { class: "flex items-end justify-between gap-2" }, [
         el("span", { class: "kpi-value" }, value),
-        el("span", { class: "kpi-label" }, label),
-      ]))
-    );
-
-    const topCard = el("div", { class: "card" }, [
-      el("p", { class: "font-semibold text-ink" }, "Top drugs this month"),
-      top.length
-        ? el("ul", { class: "mt-3 space-y-2" }, top.map(([name, qty]) =>
-            el("li", { class: "flex items-center justify-between text-sm" }, [
-              el("span", { class: "text-ink" }, name),
-              el("span", { class: "font-semibold text-soft" }, `${qty} sold`),
-            ])))
-        : el("p", { class: "mt-3 text-sm text-soft" }, "No sales yet this month."),
+        spark ? sparkline(spark, { color: sparkColor || "#0EA59B" }) : null,
+      ]),
+      trend,
     ]);
-
-    const recentCard = el("div", { class: "card lg:col-span-2" }, [
-      el("p", { class: "font-semibold text-ink" }, "Recent sales"),
-      recent.length
-        ? el("div", { class: "mt-3 overflow-x-auto" }, el("table", { class: "table" }, [
-            el("thead", {}, el("tr", {}, ["Receipt", "Patient", "Total", "When"].map((h) => el("th", {}, h)))),
-            el("tbody", {}, recent.map((s) => el("tr", {}, [
-              el("td", {}, s.receiptNumber || s.firestoreId?.slice(0, 8) || "—"),
-              el("td", {}, s.patientName || "—"),
-              el("td", {}, money(s.total)),
-              el("td", {}, fmtDate(toDate(s.createdAt))),
-            ]))),
-          ]))
-        : el("p", { class: "mt-3 text-sm text-soft" }, "No sales recorded yet."),
-    ]);
-
-    root.replaceChildren(grid, el("div", { class: "grid gap-5 lg:grid-cols-3" }, [recentCard, topCard]));
   }
 
-  const offDrugs = watch(ctx.pharmacyId, "drugs", { onData: (d) => { state.drugs = d; draw(); }, onError: () => { state.drugs = []; draw(); } });
-  const offSales = watch(ctx.pharmacyId, "sales", { onData: (d) => { state.sales = d; draw(); }, onError: () => { state.sales = []; draw(); } });
+  function alertPill(count, label, kind, page) {
+    const dot = { red: "bg-danger", orange: "bg-warn", amber: "bg-warn", purple: "bg-[#7C5CFC]", green: "bg-ok" }[kind] || "bg-soft";
+    const b = el("button", {
+      class: "inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink transition hover:border-brand-400 hover:bg-brand-50",
+      onclick: () => go(page),
+    }, [
+      el("span", { class: `h-2.5 w-2.5 flex-none rounded-full ${dot}` }),
+      el("span", { class: "tabular-nums" }, String(count)),
+      el("span", { class: "text-soft" }, label),
+    ]);
+    return b;
+  }
 
-  return () => { offDrugs(); offSales(); };
+  function listCard(title, rows, { empty, action } = {}) {
+    return el("div", { class: "card" }, [
+      el("div", { class: "mb-2 flex items-center justify-between" }, [
+        el("p", { class: "font-semibold text-ink" }, title),
+        action ? el("button", { class: "text-xs font-semibold text-brand-700 hover:text-brand-800", onclick: action.onClick }, action.label) : null,
+      ]),
+      rows && rows.length ? el("div", { class: "divide-y divide-line" }, rows) : el("p", { class: "py-6 text-center text-sm text-soft" }, empty || "Nothing yet."),
+    ]);
+  }
+  const rowEl = (left, right, sub) => el("div", { class: "flex items-center justify-between gap-3 py-2" }, [
+    el("div", { class: "min-w-0" }, [el("p", { class: "truncate text-sm font-medium text-ink" }, left), sub ? el("p", { class: "truncate text-xs text-soft" }, sub) : null]),
+    el("span", { class: "flex-none text-sm font-semibold text-ink" }, right),
+  ]);
+
+  function quickBtn(label, page, path, color) {
+    return el("button", { class: "btn-primary", style: `background:${color}`, onclick: () => go(page) }, [
+      el("span", { html: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>` }), label,
+    ]);
+  }
+
+  /* ---------- draw ---------- */
+  function draw() {
+    if (!state.drugs || !state.sales || !state.expenses) return;
+    const dm = drugMap();
+    const now = new Date();
+    const today0 = startOf(now);
+    const yest0 = new Date(today0); yest0.setDate(yest0.getDate() - 1);
+    const inToday = (s) => { const d = toDate(s.createdAt); return d && d >= today0; };
+    const inYest = (s) => { const d = toDate(s.createdAt); return d && d >= yest0 && d < today0; };
+
+    const todayS = salesStats(state.sales.filter(inToday), dm);
+    const yestS = salesStats(state.sales.filter(inYest), dm);
+
+    // Expenses today/yesterday
+    const expSum = (pred) => state.expenses.filter((e) => e.isActive !== false && pred(e)).reduce((a, e) => a + num(e.amount), 0);
+    const expToday = expSum((e) => { const d = toDate(e.date); return d && d >= today0; });
+    const expYest = expSum((e) => { const d = toDate(e.date); return d && d >= yest0 && d < today0; });
+
+    // Cash drawer (net): all cash sales − all cash expenses
+    const cashSalesAll = state.sales.reduce((a, s) => a + ((s.paymentMethod || "") === "cash" ? num(s.total) : 0), 0);
+    const cashExpAll = state.expenses.filter((e) => e.isActive !== false && (e.paymentMethod || "") === "cash").reduce((a, e) => a + num(e.amount), 0);
+    const cashDrawer = cashSalesAll - cashExpAll;
+
+    // Stock value (cost) + alerts
+    const active = state.drugs.filter((d) => d.isActive !== false);
+    const stockValue = active.reduce((a, d) => a + num(d.stockQuantity) * num(d.unitPrice), 0);
+    const low = active.filter((d) => num(d.stockQuantity) > 0 && num(d.stockQuantity) <= num(d.reorderThreshold));
+    const out = active.filter((d) => num(d.stockQuantity) <= 0);
+    const withDays = active.map((d) => ({ d, n: daysUntil(toDate(d.expiryDate)) })).filter((x) => x.n != null);
+    const expiring = withDays.filter((x) => x.n >= 0 && x.n <= 30).sort((a, b) => a.n - b.n);
+    const expired = withDays.filter((x) => x.n < 0);
+    const expWeek = withDays.filter((x) => x.n >= 0 && x.n <= 7).length;
+    const creditOutstanding = state.sales.reduce((a, s) => a + ((s.paymentMethod || "") === "credit" ? num(s.total) : 0), 0);
+
+    // 7-day sparklines / trend chart
+    const days7 = [], chart7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d0 = new Date(today0); d0.setDate(d0.getDate() - i);
+      const d1 = new Date(d0); d1.setDate(d1.getDate() + 1);
+      const dayS = state.sales.filter((s) => { const t = toDate(s.createdAt); return t && t >= d0 && t < d1; });
+      const st = salesStats(dayS, dm);
+      days7.push(st);
+      chart7.push({ label: fmtDate(d0).slice(5), value: Math.round(st.revenue) });
+    }
+    const expDays7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d0 = new Date(today0); d0.setDate(d0.getDate() - i);
+      const d1 = new Date(d0); d1.setDate(d1.getDate() + 1);
+      expDays7.push(expSum((e) => { const t = toDate(e.date); return t && t >= d0 && t < d1; }));
+    }
+
+    // Top products (last 7 days) by qty
+    const prodQty = {};
+    const weekStart = new Date(today0); weekStart.setDate(weekStart.getDate() - 6);
+    for (const s of state.sales) { const t = toDate(s.createdAt); if (!t || t < weekStart) continue; for (const it of items(s)) prodQty[it.drugName || "—"] = (prodQty[it.drugName || "—"] || 0) + num(it.quantity); }
+    const topProducts = Object.entries(prodQty).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+    /* ----- build sections ----- */
+    const name = (ctx.session.displayName || (ctx.session.email || "").split("@")[0] || "there").split(" ")[0];
+    const greet = now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
+    const summaryBits = [];
+    if (expWeek) summaryBits.push(`${expWeek} item${expWeek > 1 ? "s" : ""} expiring this week`);
+    if (out.length) summaryBits.push(`${out.length} out of stock`);
+    if (low.length) summaryBits.push(`${low.length} low on stock`);
+    const summary = summaryBits.length ? summaryBits.join(" · ") : "everything looks healthy today";
+
+    const greeting = el("div", {}, [
+      el("h1", { class: "text-xl font-bold text-ink" }, `${greet}, ${name[0].toUpperCase() + name.slice(1)}`),
+      el("p", { class: "mt-0.5 text-sm text-soft" }, `You have ${summary}.`),
+    ]);
+
+    const kpis = el("div", { class: "grid grid-cols-2 gap-3 lg:grid-cols-6" }, [
+      kpiCard({ label: "Today's sales", value: money(todayS.revenue), change: pct(todayS.revenue, yestS.revenue), spark: days7.map((x) => x.revenue), sparkColor: "#0EA59B" }),
+      kpiCard({ label: "Today's profit", value: money(todayS.profit), change: pct(todayS.profit, yestS.profit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }),
+      kpiCard({ label: "Invoices", value: String(todayS.count), change: pct(todayS.count, yestS.count) }),
+      kpiCard({ label: "Cash (net)", value: money(cashDrawer) }),
+      kpiCard({ label: "Stock value", value: money(stockValue) }),
+      kpiCard({ label: "Today's expenses", value: money(expToday), change: pct(expToday, expYest), goodWhenUp: false, spark: expDays7, sparkColor: "#E8554E" }),
+    ]);
+
+    const alerts = el("div", { class: "flex flex-wrap items-center gap-2" }, [
+      el("span", { class: "text-xs font-semibold uppercase tracking-wide text-soft" }, "Needs attention"),
+      alertPill(expiring.length, "expiring ≤30d", "orange", "inventory"),
+      alertPill(low.length, "low stock", "amber", "inventory"),
+      alertPill(out.length, "out of stock", "red", "inventory"),
+      alertPill(expired.length, "expired", "red", "inventory"),
+      creditOutstanding > 0 ? alertPill(Math.round(creditOutstanding), "credit due", "purple", "reports") : null,
+    ]);
+
+    const charts = el("div", { class: "grid gap-5 lg:grid-cols-2" }, [
+      el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, "Sales — last 7 days"), barChart(chart7)]),
+      el("div", { class: "card" }, [el("p", { class: "mb-3 font-semibold text-ink" }, "Top products (this week)"),
+        topProducts.length ? barChart(topProducts.map(([l, v]) => ({ label: l.slice(0, 8), value: v })), { color: "#7C5CFC" }) : el("p", { class: "text-sm text-soft" }, "No sales this week.")]),
+    ]);
+
+    const recent = [...state.sales].sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0)).slice(0, 6)
+      .map((s) => rowEl(s.patientName || "Walk-in", money(s.total), `${s.receiptNumber || ""} · ${s.staffName || ""}`.replace(/^ · | · $/g, "")));
+    const topList = topProducts.slice(0, 6).map(([n, q]) => rowEl(n, `${q} sold`));
+    const expSoon = expiring.slice(0, 6).map((x) => rowEl(x.d.name || "—", `${x.n}d`, fmtDate(toDate(x.d.expiryDate))));
+
+    const lists = el("div", { class: "grid gap-5 lg:grid-cols-3" }, [
+      listCard("Recent sales", recent, { empty: "No sales yet.", action: { label: "All", onClick: () => go("sales") } }),
+      listCard("Top selling (this week)", topList, { empty: "No sales this week." }),
+      listCard("Expiring soon", expSoon, { empty: "Nothing expiring soon.", action: { label: "Inventory", onClick: () => go("inventory") } }),
+    ]);
+
+    const quick = el("div", { class: "card flex flex-wrap gap-2" }, [
+      quickBtn("New sale", "sales", '<path d="M12 5v14M5 12h14"/>', "#0EA59B"),
+      quickBtn("Add stock", "drugs", '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', "#2F6FED"),
+      quickBtn("Add expense", "expenses", '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', "#E8554E"),
+      quickBtn("Reports", "reports", '<path d="M5 20V10M12 20V4M19 20v-7"/>', "#6C7B7A"),
+    ]);
+
+    root.replaceChildren(greeting, kpis, alerts, charts, lists, quick);
+  }
+
+  const offD = watch(pid, "drugs", { onData: (d) => { state.drugs = d; draw(); }, onError: () => { state.drugs = []; draw(); } });
+  const offS = watch(pid, "sales", { onData: (d) => { state.sales = d; draw(); }, onError: () => { state.sales = []; draw(); } });
+  const offE = watch(pid, "expenses", { onData: (d) => { state.expenses = d; draw(); }, onError: () => { state.expenses = []; draw(); } });
+  return () => { offD(); offS(); offE(); };
 }

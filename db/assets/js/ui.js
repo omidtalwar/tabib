@@ -199,6 +199,20 @@ export function printContent(title, innerHTML) {
   w.document.close();
 }
 
+/** Tiny inline sparkline from an array of numbers. */
+export function sparkline(values, { color = "#0EA59B", width = 86, height = 26 } = {}) {
+  const span = el("span", { class: "inline-block align-middle" });
+  if (!values || values.length < 2) { span.innerHTML = ""; return span; }
+  const max = Math.max(...values), min = Math.min(0, ...values), range = (max - min) || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - 2 - ((v - min) / range) * (height - 4);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  span.innerHTML = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return span;
+}
+
 /** Lightweight SVG-free bar chart. data: [{label,value}]. */
 export function barChart(data, { height = 150, color = "#26b3a6" } = {}) {
   const max = Math.max(1, ...data.map((d) => d.value));
