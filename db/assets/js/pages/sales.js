@@ -1,5 +1,5 @@
 /** Sales — history + POS (atomic, offline-capable sale via commitSale). */
-import { watch, commitSale, commitReturn, uuid, toDate } from "../repo.js";
+import { watch, commitSale, commitReturn, update, uuid, toDate } from "../repo.js";
 import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog, formModal, printContent, iconButton, esc, withButtonLoading } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -11,6 +11,11 @@ export default function render(outlet, ctx) {
   let mode = "history";
   const cart = [];
   let patientName = "", paymentMethod = "cash", discountPercent = 0, insuranceCoverage = 0;
+
+  // Dispense handoff from the prescriptions page: open POS pre-filled.
+  let pendingDispense = null, dispenseRxId = null;
+  try { const raw = localStorage.getItem("tabib_dispense"); if (raw) { pendingDispense = JSON.parse(raw); localStorage.removeItem("tabib_dispense"); } } catch {}
+  if (pendingDispense) { mode = "pos"; patientName = pendingDispense.patientName || ""; dispenseRxId = pendingDispense.prescriptionId || null; }
 
   const root = el("div", { class: "space-y-5" });
   outlet.append(root);
@@ -45,6 +50,7 @@ export default function render(outlet, ctx) {
     };
     try {
       await commitSale(pid, saleId, payload, items);
+      if (dispenseRxId) { try { await update(pid, "prescriptions", dispenseRxId, { status: "dispensed", dispensedAt: new Date().toISOString(), dispensedBy: ctx.session.email || "" }); } catch {} dispenseRxId = null; }
       toast(t("sales.recorded", { total: money(total) }), { type: "ok" });
       printReceipt({ ...payload, firestoreId: saleId });
       cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0;
@@ -191,7 +197,21 @@ export default function render(outlet, ctx) {
   }
 
   paint();
-  const offDrugs = watch(pid, "drugs", { onData: (d) => { drugs = d; }, onError: () => { drugs = []; } });
+  const offDrugs = watch(pid, "drugs", {
+    onData: (d) => {
+      drugs = d;
+      if (pendingDispense) {
+        for (const it of pendingDispense.items || []) {
+          const dr = drugs.find((x) => (x.firestoreId || x.id) === it.drugId);
+          if (!dr) continue;
+          cart.push({ drugId: it.drugId, drugName: it.drugName || dr.name, unitPrice: Number(dr.sellingPrice) || 0, quantity: Number(it.quantity) || 1, stock: dr.stockQuantity ?? 0 });
+        }
+        pendingDispense = null;
+        if (mode === "pos") paint();
+      }
+    },
+    onError: () => { drugs = []; },
+  });
   const offSales = watch(pid, "sales", { onData: (d) => { sales = d; if (mode === "history") paint(); }, onError: () => { sales = []; if (mode === "history") paint(); } });
   return () => { offDrugs(); offSales(); };
 }

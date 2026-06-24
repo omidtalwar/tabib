@@ -468,5 +468,22 @@
   "cr.method": "Method",
   "cr.note": "Note",
   "cr.recorded": "Payment recorded",
-  "cr.none": "No outstanding credit — everyone's settled."
+  "cr.none": "No outstanding credit — everyone's settled.",
+
+  "rx.add": "New prescription",
+  "rx.addTitle": "New prescription",
+  "rx.fPatient": "Patient name",
+  "rx.fDoctor": "Doctor name",
+  "rx.fDoctorPhone": "Doctor phone",
+  "rx.fDosage": "Dosage",
+  "rx.searchDrug": "Search a drug to add…",
+  "rx.cDrug": "Drug",
+  "rx.cDosage": "Dosage",
+  "rx.cQty": "Qty",
+  "rx.cartEmpty": "No drugs added yet — search above.",
+  "rx.save": "Save prescription",
+  "rx.saved": "Prescription saved",
+  "rx.dispense": "Dispense",
+  "rx.dispensed": "Sent to POS — confirm the sale to dispense.",
+  "rx.back": "← Back"
 }
