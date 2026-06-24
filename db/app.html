@@ -84,7 +84,7 @@
   <script type="module">
     import { isConfigured } from "./assets/js/firebase.js";
     import { requirePharmacySession, logout, currentSession } from "./assets/js/session.js";
-    import { startRouter, navigate, PAGES } from "./assets/js/router.js";
+    import { startRouter, navigate, PAGES, allowedFor } from "./assets/js/router.js";
     import { pharmacyRef, listOwnedPharmacies, getActivePharmacy, setActivePharmacy } from "./assets/js/repo.js";
     import { initI18n, t, applyTranslations, setLocale, getLocale, LOCALE_LABELS } from "./assets/js/i18n.js";
     import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
@@ -161,16 +161,18 @@
       document.getElementById("menuEmail").textContent = email;
       document.getElementById("sideRole").textContent = t(session.role === "admin" ? "app.roleAdmin" : "app.roleStaff");
 
-      // Build sidebar nav (colored icon tiles).
+      // Build sidebar nav (colored icon tiles) — only pages this role may open.
+      const navPages = allowedFor(session.role);
+      const bottomFirst = navPages.includes("reports") ? "reports" : "settings";
       const nav = document.getElementById("nav");
       const links = {};
-      for (const page of PAGES) {
+      for (const page of navPages) {
         const n = NAV[page];
         const a = document.createElement("a");
         a.href = `#/p/${active}/${page}`;
         a.className = "nav-tile";
         a.innerHTML = `<span class="nav-ico" style="background:${n.color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span><span>${t("nav." + page)}</span>`;
-        if (page === "reports") a.classList.add("mt-auto"); // push Reports + Settings to the bottom
+        if (page === bottomFirst) a.classList.add("mt-auto"); // push Reports/Settings to the bottom
         nav.append(a);
         links[page] = a;
       }
@@ -260,7 +262,7 @@
       let fabTimer;
       function updateFab(currentPage) {
         const v = readViews();
-        const ranked = PAGES.filter((p) => p !== currentPage && p !== "dashboard" && NAV[p]).sort((a, b) => (v[b] || 0) - (v[a] || 0));
+        const ranked = navPages.filter((p) => p !== currentPage && p !== "dashboard" && NAV[p]).sort((a, b) => (v[b] || 0) - (v[a] || 0));
         const top = ranked.find((p) => (v[p] || 0) > 0) || "sales";
         const n = NAV[top];
         fab.href = `#/p/${active}/${top}`;

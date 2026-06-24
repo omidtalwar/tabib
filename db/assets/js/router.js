@@ -18,6 +18,12 @@ const PAGES = [
 ];
 const DEFAULT_PAGE = "dashboard";
 
+// Owner-only pages (financial / management). Staff (cashier) don't see these.
+const STAFF_HIDDEN = new Set(["suppliers", "purchases", "expenses", "reports"]);
+export function allowedFor(role) {
+  return role === "admin" ? PAGES.slice() : PAGES.filter((p) => !STAFF_HIDDEN.has(p));
+}
+
 let _ctxBase = null;       // { session, pharmacyId }
 let _outlet = null;
 let _onNavigate = null;    // cb(page) for sidebar highlight + title
@@ -47,9 +53,10 @@ async function handle() {
   const { urlPid, page, params } = parseHash();
   const pid = _ctxBase.pharmacyId;
 
-  // Normalize: enforce the active pharmacyId + a valid page.
-  const safePage = PAGES.includes(page) ? page : DEFAULT_PAGE;
-  if (urlPid !== pid || !PAGES.includes(page)) {
+  // Normalize: enforce the active pharmacyId + a page this role may open.
+  const allowed = allowedFor(_ctxBase.session.role);
+  const safePage = allowed.includes(page) ? page : DEFAULT_PAGE;
+  if (urlPid !== pid || !allowed.includes(page)) {
     location.replace(`#/p/${pid}/${safePage}`);
     return;
   }

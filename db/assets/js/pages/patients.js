@@ -11,6 +11,7 @@ const num = (x) => Number(x) || 0;
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
+  const isAdmin = ctx.session.role === "admin";
   let rows = null, q = "", mode = "list";
 
   const root = el("div", { class: "space-y-5" }, loading());
@@ -53,7 +54,7 @@ export default function render(outlet, ctx) {
       class: "rounded-lg px-3 py-1.5 text-sm font-semibold transition " + (mode === key ? "bg-brand-50 text-brand-700" : "text-soft hover:text-ink"),
       onclick: () => { mode = key; paint(); },
     }, label);
-    return el("div", { class: "inline-flex rounded-xl border border-line bg-white p-1" }, [tab("list", t("cr.tabPatients")), tab("credit", t("cr.tabCredit"))]);
+    return el("div", { class: "inline-flex rounded-xl border border-line bg-white p-1" }, [tab("list", t("cr.tabPatients")), isAdmin ? tab("credit", t("cr.tabCredit")) : null]);
   }
 
   function listView() {
@@ -139,6 +140,7 @@ export default function render(outlet, ctx) {
   }
 
   function paint() {
+    if (mode === "credit" && !isAdmin) mode = "list";
     root.replaceChildren(mode === "credit" ? creditView() : listView());
   }
 

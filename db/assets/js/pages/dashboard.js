@@ -175,13 +175,16 @@ export default function render(outlet, ctx) {
       el("p", { class: "mt-0.5 text-sm text-soft" }, summaryLine),
     ]);
 
+    // Owners see financial figures (profit, cash, stock value, expenses);
+    // cashiers (staff) see only their operational numbers.
+    const isAdmin = ctx.session.role === "admin";
     const kpis = el("div", { class: "grid grid-cols-2 gap-3 lg:grid-cols-6" }, [
       kpiCard({ label: t("dash.kpiSales"), value: money(todayRevenue), change: pct(todayRevenue, yestRevenue), spark: days7.map((x) => x.revenue), sparkColor: "#0EA59B" }),
-      kpiCard({ label: t("dash.kpiProfit"), value: money(todayProfit), change: pct(todayProfit, yestProfit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }),
+      isAdmin ? kpiCard({ label: t("dash.kpiProfit"), value: money(todayProfit), change: pct(todayProfit, yestProfit), spark: days7.map((x) => x.profit), sparkColor: "#1F9D55" }) : null,
       kpiCard({ label: t("dash.kpiInvoices"), value: String(todayS.count), change: pct(todayS.count, yestS.count) }),
-      kpiCard({ label: t("dash.kpiCash"), value: money(cashDrawer) }),
-      kpiCard({ label: t("dash.kpiStock"), value: money(stockValue) }),
-      kpiCard({ label: t("dash.kpiExpenses"), value: money(expToday), change: pct(expToday, expYest), goodWhenUp: false, spark: expDays7, sparkColor: "#E8554E" }),
+      isAdmin ? kpiCard({ label: t("dash.kpiCash"), value: money(cashDrawer) }) : null,
+      isAdmin ? kpiCard({ label: t("dash.kpiStock"), value: money(stockValue) }) : null,
+      isAdmin ? kpiCard({ label: t("dash.kpiExpenses"), value: money(expToday), change: pct(expToday, expYest), goodWhenUp: false, spark: expDays7, sparkColor: "#E8554E" }) : null,
     ]);
 
     const alerts = el("div", { class: "flex flex-wrap items-center gap-2" }, [
@@ -190,7 +193,7 @@ export default function render(outlet, ctx) {
       alertPill(low.length, t("dash.alertLow"), "amber", "inventory"),
       alertPill(out.length, t("dash.alertOut"), "red", "inventory"),
       alertPill(expired.length, t("dash.alertExpired"), "red", "inventory"),
-      creditOutstanding > 0 ? alertPill(Math.round(creditOutstanding), t("dash.alertCredit"), "purple", "reports") : null,
+      isAdmin && creditOutstanding > 0 ? alertPill(Math.round(creditOutstanding), t("dash.alertCredit"), "purple", "reports") : null,
     ]);
 
     const charts = el("div", { class: "grid gap-5 lg:grid-cols-2" }, [
@@ -213,11 +216,11 @@ export default function render(outlet, ctx) {
     const quick = el("div", { class: "card flex flex-wrap gap-2" }, [
       quickBtn(t("dash.quickNewSale"), "sales", '<path d="M12 5v14M5 12h14"/>', "#0EA59B"),
       quickBtn(t("dash.quickAddStock"), "drugs", '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', "#2F6FED"),
-      quickBtn(t("dash.quickAddExpense"), "expenses", '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', "#E8554E"),
-      quickBtn(t("dash.quickReports"), "reports", '<path d="M5 20V10M12 20V4M19 20v-7"/>', "#6C7B7A"),
-    ]);
+      isAdmin ? quickBtn(t("dash.quickAddExpense"), "expenses", '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', "#E8554E") : null,
+      isAdmin ? quickBtn(t("dash.quickReports"), "reports", '<path d="M5 20V10M12 20V4M19 20v-7"/>', "#6C7B7A") : null,
+    ].filter(Boolean));
 
-    root.replaceChildren(greeting, kpis, alerts, charts, lists, quick);
+    root.replaceChildren(...[greeting, kpis, alerts, isAdmin ? charts : null, lists, quick].filter(Boolean));
   }
 
   const offD = watch(pid, "drugs", { onData: (d) => { state.drugs = d; draw(); }, onError: () => { state.drugs = []; draw(); } });
