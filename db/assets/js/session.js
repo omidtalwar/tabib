@@ -129,7 +129,9 @@ export async function requirePharmacySession({ loginUrl = "./index.html" } = {})
     return new Promise(() => {}); // never resolves; page is navigating away
   }
 
-  const res = await user.getIdTokenResult();
+  // Force-refresh the ID token so a newly-granted custom claim (pharmacyId/role)
+  // is picked up without requiring a full sign-out/sign-in.
+  const res = await user.getIdTokenResult(true);
   const s = {
     uid: user.uid,
     email: user.email,
