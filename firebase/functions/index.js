@@ -25,18 +25,24 @@ initializeApp();
 
 const ROLES = ["admin", "staff"];
 
-/** Throw unless the caller is a signed-in admin of `pharmacyId`. */
-function assertCallerIsPharmacyAdmin(request, pharmacyId) {
+/**
+ * Throw unless the caller may manage `pharmacyId`. Allowed if EITHER:
+ *  - their custom claim is admin of exactly this pharmacy, OR
+ *  - they are the pharmacy's owner (pharmacies/{id}.ownerUid == uid).
+ * The owner check covers owners of multiple pharmacies whose single claim
+ * points at a different one (they switch between pharmacies in the portal).
+ */
+async function assertCallerIsPharmacyAdmin(request, pharmacyId) {
+  const uid = request.auth && request.auth.uid;
   const token = request.auth && request.auth.token;
-  if (!token) {
-    throw new HttpsError("unauthenticated", "Sign in first.");
-  }
-  if (token.role !== "admin" || token.pharmacyId !== pharmacyId) {
-    throw new HttpsError(
-      "permission-denied",
-      "Only an admin of this pharmacy can manage its staff."
-    );
-  }
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
+  if (token.role === "admin" && token.pharmacyId === pharmacyId) return;
+  const snap = await getFirestore().doc(`pharmacies/${pharmacyId}`).get();
+  if (snap.exists && snap.data().ownerUid === uid) return;
+  throw new HttpsError(
+    "permission-denied",
+    "Only an admin or owner of this pharmacy can manage its staff."
+  );
 }
 
 function validateRole(role) {
@@ -58,7 +64,7 @@ exports.setPharmacyClaim = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "uid, pharmacyId and role are required.");
   }
   validateRole(role);
-  assertCallerIsPharmacyAdmin(request, pharmacyId);
+  await assertCallerIsPharmacyAdmin(request, pharmacyId);
 
   await getAuth().setCustomUserClaims(uid, { pharmacyId, role });
 
@@ -112,7 +118,7 @@ exports.createPharmacyStaff = onCall(async (request) => {
     );
   }
   validateRole(role);
-  assertCallerIsPharmacyAdmin(request, pharmacyId);
+  await assertCallerIsPharmacyAdmin(request, pharmacyId);
 
   let user;
   try {
