@@ -37,7 +37,7 @@
   <!-- App shell (revealed after guard passes) -->
   <div id="shell" class="hidden md:grid md:grid-cols-[260px_1fr] min-h-screen">
     <!-- Sidebar -->
-    <aside class="flex flex-col border-e border-line bg-white/40 md:min-h-screen">
+    <aside class="flex flex-col border-e border-line bg-white/40 md:sticky md:top-0 md:h-screen md:overflow-y-auto">
       <div class="side-profile">
         <div id="avatar" class="side-avatar">P</div>
         <div class="min-w-0">
@@ -50,7 +50,7 @@
 
     <!-- Main -->
     <div class="flex min-h-screen flex-col">
-      <header class="flex items-center justify-between gap-3 border-b border-line bg-white px-5 py-2.5">
+      <header class="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-white px-5 py-2.5">
         <h1 id="pageTitle" class="text-lg font-bold text-ink">Dashboard</h1>
         <div class="flex items-center gap-2.5">
           <div id="switcherHost"></div>
