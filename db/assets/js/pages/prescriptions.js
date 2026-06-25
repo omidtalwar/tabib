@@ -11,6 +11,7 @@ const parseItems = (p) => { try { return JSON.parse(p.itemsJson || "[]"); } catc
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let rows = null, drugs = [], q = "", mode = "list";
+  let drugQuery = "", renderDrugResults = () => {};
   const cart = []; // { drugId, drugName, dosage, quantity }
   let patientName = "", doctorName = "", doctorPhone = "", notes = "";
 
@@ -40,12 +41,13 @@ export default function render(outlet, ctx) {
 
   function newView() {
     const results = el("div", { class: "mt-2 grid gap-1" });
-    const search = searchInput(t("rx.searchDrug"), (v) => {
+    renderDrugResults = () => {
       results.replaceChildren();
-      if (!v) return;
-      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(v)).slice(0, 8)
+      if (!drugQuery) return;
+      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(drugQuery)).slice(0, 8)
         .forEach((d) => results.append(el("button", { class: "rounded-lg border border-line px-3 py-2 text-start text-sm hover:bg-brand-50", onclick: () => { if (!cart.find((c) => c.drugId === (d.firestoreId || d.id))) { cart.push({ drugId: d.firestoreId || d.id, drugName: d.name, dosage: "", quantity: 1 }); draw(); } } }, el("span", { class: "font-semibold text-ink" }, d.name))));
-    });
+    };
+    const search = searchInput(t("rx.searchDrug"), (v) => { drugQuery = v; renderDrugResults(); });
     const cartHost = el("div", {});
     function draw() {
       if (!cart.length) { cartHost.replaceChildren(el("p", { class: "py-6 text-center text-sm text-soft" }, t("rx.cartEmpty"))); return; }
@@ -97,7 +99,7 @@ export default function render(outlet, ctx) {
   function labeled(l, n) { return el("label", { class: "block" }, [el("span", { class: "label" }, l), n]); }
 
   paint();
-  const offD = watch(pid, "drugs", { onData: (d) => { drugs = d; }, onError: () => { drugs = []; } });
+  const offD = watch(pid, "drugs", { onData: (d) => { drugs = d; renderDrugResults(); }, onError: () => { drugs = []; } });
   const offR = watch(pid, "prescriptions", { onData: (d) => { rows = d; if (mode === "list") paint(); }, onError: () => { rows = []; if (mode === "list") paint(); } });
   return () => { offD(); offR(); };
 }

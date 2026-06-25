@@ -9,6 +9,7 @@ export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let sales = null, drugs = [];
   let mode = "history";
+  let drugQuery = "", renderDrugResults = () => {};
   const cart = [];
   let patientName = "", paymentMethod = "cash", discountPercent = 0, insuranceCoverage = 0;
 
@@ -101,10 +102,12 @@ export default function render(outlet, ctx) {
 
   function posView() {
     const results = el("div", { class: "mt-2 grid gap-1" });
-    const search = searchInput(t("sales.posSearch"), (v) => {
+    // Re-renders the dropdown for the current query — called on keystroke AND
+    // whenever the drugs data arrives (so offline/late cache loads still show).
+    renderDrugResults = () => {
       results.replaceChildren();
-      if (!v) return;
-      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(v)).slice(0, 8)
+      if (!drugQuery) return;
+      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(drugQuery)).slice(0, 8)
         .forEach((d) => results.append(el("button", {
           class: "flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm hover:bg-brand-50 text-start",
           onclick: () => addToCart(d),
@@ -112,7 +115,8 @@ export default function render(outlet, ctx) {
           el("span", {}, [el("span", { class: "font-semibold text-ink" }, d.name), el("span", { class: "ms-2 text-soft" }, money(d.sellingPrice))]),
           el("span", { class: "text-xs text-soft" }, `${t("sales.stock")} ${d.stockQuantity ?? 0}`),
         ])));
-    });
+    };
+    const search = searchInput(t("sales.posSearch"), (v) => { drugQuery = v; renderDrugResults(); });
 
     const cartHost = el("div", {});
     const totalsHost = el("div", {});
@@ -209,6 +213,7 @@ export default function render(outlet, ctx) {
         pendingDispense = null;
         if (mode === "pos") paint();
       }
+      renderDrugResults(); // refresh the open POS dropdown when data arrives
     },
     onError: () => { drugs = []; },
   });

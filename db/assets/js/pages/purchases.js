@@ -8,6 +8,7 @@ export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
   let purchases = null, drugs = [], suppliers = [];
   let mode = "history";
+  let drugQuery = "", renderDrugResults = () => {};
   const cart = []; // { drugId, drugName, quantity, costPrice }
   let supplierId = "", invoiceNumber = "", amountPaid = 0;
 
@@ -44,15 +45,16 @@ export default function render(outlet, ctx) {
 
   function newView() {
     const results = el("div", { class: "mt-2 grid gap-1" });
-    const search = searchInput(t("pur.searchDrug"), (v) => {
+    renderDrugResults = () => {
       results.replaceChildren();
-      if (!v) return;
-      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(v)).slice(0, 8)
+      if (!drugQuery) return;
+      drugs.filter((d) => d.isActive !== false && (d.name || "").toLowerCase().includes(drugQuery)).slice(0, 8)
         .forEach((d) => results.append(el("button", {
           class: "flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm hover:bg-brand-50 text-start",
           onclick: () => addToCart(d),
         }, [el("span", { class: "font-semibold text-ink" }, d.name), el("span", { class: "text-xs text-soft" }, money(d.unitPrice))])));
-    });
+    };
+    const search = searchInput(t("pur.searchDrug"), (v) => { drugQuery = v; renderDrugResults(); });
     const cartHost = el("div", {});
     const footHost = el("div", {});
 
@@ -123,7 +125,7 @@ export default function render(outlet, ctx) {
   function row(l, r) { return el("div", { class: "flex justify-between text-soft" }, [el("span", {}, l), el("span", {}, r)]); }
 
   paint();
-  const offD = watch(pid, "drugs", { onData: (d) => { drugs = d; }, onError: () => { drugs = []; } });
+  const offD = watch(pid, "drugs", { onData: (d) => { drugs = d; renderDrugResults(); }, onError: () => { drugs = []; } });
   const offP = watch(pid, "purchases", { onData: (d) => { purchases = d; if (mode === "history") paint(); }, onError: () => { purchases = []; if (mode === "history") paint(); } });
   return () => { offD(); offP(); };
 }
