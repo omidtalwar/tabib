@@ -125,8 +125,14 @@ export async function requirePharmacySession({ loginUrl = "./index.html" } = {})
   }
 
   // Force-refresh the ID token so a newly-granted custom claim (pharmacyId/role)
-  // is picked up without requiring a full sign-out/sign-in.
-  const res = await user.getIdTokenResult(true);
+  // is picked up — but force-refresh needs the network, so OFFLINE fall back to
+  // the cached token (otherwise the portal would hang on the boot splash offline).
+  let res;
+  try {
+    res = await user.getIdTokenResult(true);
+  } catch (e) {
+    res = await user.getIdTokenResult(); // cached claims (works offline)
+  }
   const s = {
     uid: user.uid,
     email: user.email,
