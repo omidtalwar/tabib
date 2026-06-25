@@ -9,7 +9,7 @@
  *
  * Bump CACHE_VERSION to force clients onto fresh assets.
  */
-const CACHE_VERSION = "tabib-rx-v12";
+const CACHE_VERSION = "tabib-rx-v13";
 
 // Same-origin shell to precache so the portal opens offline after install.
 const SHELL = [

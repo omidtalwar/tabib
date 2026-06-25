@@ -19,7 +19,7 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-aut
 import {
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentSingleTabManager,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
 
@@ -45,11 +45,14 @@ export const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Persistent multi-tab cache (IndexedDB). Must be created via initializeFirestore
-// before any getFirestore() call elsewhere.
+// Persistent IndexedDB cache so the portal works fully offline (reads served
+// from cache, writes queued + replayed on reconnect). Single-tab manager with
+// forceOwnership: this tab always takes ownership of the cache — the multi-tab
+// manager could leave a tab without offline data. Must be created via
+// initializeFirestore before any getFirestore() call elsewhere.
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
+    tabManager: persistentSingleTabManager({ forceOwnership: true }),
   }),
 });
 
