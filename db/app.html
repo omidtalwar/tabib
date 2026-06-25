@@ -29,11 +29,6 @@
     </div>
   </div>
 
-  <!-- Offline banner -->
-  <div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-50 bg-warn px-4 py-1.5 text-center text-sm font-semibold text-white" data-i18n="app.offlineBanner">
-    You're offline. Changes are saved on this device and will sync when you reconnect.
-  </div>
-
   <!-- App shell (revealed after guard passes) -->
   <div id="shell" class="hidden md:grid md:grid-cols-[260px_1fr] min-h-screen">
     <!-- Sidebar -->
@@ -54,9 +49,7 @@
         <h1 id="pageTitle" class="text-lg font-bold text-ink">Dashboard</h1>
         <div class="flex items-center gap-2.5">
           <div id="switcherHost"></div>
-          <span id="syncDot" class="hidden items-center gap-1.5 text-xs font-semibold text-soft sm:inline-flex">
-            <span class="h-2 w-2 rounded-full bg-ok"></span><span id="syncText">Online</span>
-          </span>
+          <span id="syncDot" class="inline-flex items-center" title="Online"></span>
           <div class="relative">
             <button id="userBtn" class="user-trigger" aria-haspopup="true" aria-expanded="false">
               <span id="headerAvatar" class="grid h-7 w-7 flex-none place-items-center rounded-full text-[11px] font-bold text-white" style="background-image:linear-gradient(135deg,#26b3a6,#0A7F77)">P</span>
@@ -250,14 +243,16 @@
         document.getElementById("pharmacyName").textContent = d.name || d.pharmacyName || active;
       }, () => {});
 
-      // Online/offline indicator + banner
-      const banner = document.getElementById("offlineBanner");
-      const dot = document.querySelector("#syncDot span");
-      const txt = document.getElementById("syncText");
+      // Compact online/offline indicator in the header (no full-width banner):
+      // a small green dot when online, an amber wi-fi-off icon when offline.
+      const syncDot = document.getElementById("syncDot");
       function setOnline(on) {
-        banner.classList.toggle("hidden", on);
-        dot.className = `h-2 w-2 rounded-full ${on ? "bg-ok" : "bg-warn"}`;
-        txt.textContent = on ? t("app.online") : t("app.offline");
+        syncDot.title = on ? t("app.online") : t("app.offline");
+        syncDot.innerHTML = on
+          ? '<span class="h-2.5 w-2.5 rounded-full bg-ok"></span>'
+          : '<span class="inline-flex items-center gap-1 text-xs font-semibold text-warn">'
+            + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>'
+            + '<span class="hidden sm:inline">' + t("app.offline") + '</span></span>';
       }
       setOnline(navigator.onLine);
       addEventListener("online", () => setOnline(true));
