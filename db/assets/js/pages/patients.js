@@ -1,6 +1,6 @@
 /** Patients — list + create/edit, and a Credit (receivables) view where you
  * record customer credit-payments. Outstanding = credit sales − payments, by name. */
-import { watch, create, update, readAll, toIso, toDate, uuid } from "../repo.js";
+import { watch, create, update, readAll, toIso, toDate, uuid, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, money, fmtDate, loading, formModal, toast, iconButton, ICON } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -41,8 +41,8 @@ export default function render(outlet, ctx) {
           emergencyContact: d.emergencyContact, insuranceId: d.insuranceId, notes: d.notes,
           allergies: (d.allergies || "").split(",").map((s) => s.trim()).filter(Boolean),
         };
-        if (existing) await update(pid, "patients", existing.firestoreId || existing.id, payload);
-        else await create(pid, "patients", { ...payload, createdAt: new Date().toISOString() });
+        if (existing) await commitLocal(update(pid, "patients", existing.firestoreId || existing.id, payload));
+        else await commitLocal(create(pid, "patients", { ...payload, createdAt: new Date().toISOString() }));
       },
     });
     if (ok) toast(existing ? t("pat.updated") : t("pat.added"), { type: "ok" });
@@ -125,11 +125,11 @@ export default function render(outlet, ctx) {
           { name: "note", label: t("cr.note"), type: "textarea", full: true },
         ],
         onSubmit: async (v) => {
-          await create(pid, "customer_payments", {
+          await commitLocal(create(pid, "customer_payments", {
             id: Date.now(), patientName: name, amount: num(v.amount), paymentMethod: v.paymentMethod || "cash",
             note: v.note || "", date: new Date().toISOString(), recordedBy: ctx.session.email || "",
             createdAt: new Date().toISOString(), isDirty: false,
-          });
+          }));
         },
       });
       if (ok) { toast(t("cr.recorded"), { type: "ok" }); load(); }

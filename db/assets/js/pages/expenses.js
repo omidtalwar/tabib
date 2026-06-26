@@ -1,5 +1,5 @@
 /** Expenses — record and track pharmacy spending. CRUD + filters + KPIs + CSV. */
-import { watch, create, update, softDelete, toIso, toDate } from "../repo.js";
+import { watch, create, update, softDelete, toIso, toDate, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect, downloadCSV } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -30,8 +30,8 @@ export default function render(outlet, ctx) {
           paymentMethod: d.paymentMethod || "cash", paidTo: d.paidTo || "", referenceNo: d.referenceNo || "",
           description: d.description || "", recurring: !!d.recurring, recordedBy: ctx.session.email || "",
         };
-        if (existing) await update(pid, "expenses", existing.firestoreId || existing.id, payload);
-        else await create(pid, "expenses", { ...payload, isActive: true, createdAt: new Date().toISOString() });
+        if (existing) await commitLocal(update(pid, "expenses", existing.firestoreId || existing.id, payload));
+        else await commitLocal(create(pid, "expenses", { ...payload, isActive: true, createdAt: new Date().toISOString() }));
       },
     });
     if (ok) toast(existing ? t("exp.updated") : t("exp.added"), { type: "ok" });
@@ -39,7 +39,7 @@ export default function render(outlet, ctx) {
 
   async function remove(e) {
     if (!(await confirmDialog(t("exp.deleteConfirm", { amount: money(e.amount), category: e.category }), { confirmLabel: t("common.delete"), danger: true }))) return;
-    await softDelete(pid, "expenses", e.firestoreId || e.id);
+    await commitLocal(softDelete(pid, "expenses", e.firestoreId || e.id));
     toast(t("exp.deleted"), { type: "ok" });
   }
 

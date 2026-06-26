@@ -1,5 +1,5 @@
 /** Suppliers — live list + create/edit. */
-import { watch, create, update } from "../repo.js";
+import { watch, create, update, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, loading, formModal, toast, iconButton, ICON } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -26,8 +26,8 @@ export default function render(outlet, ctx) {
           address: d.address, notes: d.notes,
           itemsSupplied: (d.itemsSupplied || "").split(",").map((s) => s.trim()).filter(Boolean),
         };
-        if (existing) await update(pid, "suppliers", existing.firestoreId || existing.id, payload);
-        else await create(pid, "suppliers", { ...payload, createdAt: new Date().toISOString() });
+        if (existing) await commitLocal(update(pid, "suppliers", existing.firestoreId || existing.id, payload));
+        else await commitLocal(create(pid, "suppliers", { ...payload, createdAt: new Date().toISOString() }));
       },
     });
     if (ok) toast(existing ? t("sup.updated") : t("sup.added"), { type: "ok" });

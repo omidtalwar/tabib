@@ -143,6 +143,39 @@ export async function readAll(pharmacyId, sub, constraints = []) {
  * Dates must already be ISO strings — use toIso() when building `data`. */
 
 /**
+ * Settle a Firestore write by its LOCAL completion, not the server round-trip.
+ *
+ * IMPORTANT Firestore behaviour: offline, a write Promise (setDoc / updateDoc /
+ * batch.commit / runTransaction…) stays PENDING until the device reconnects —
+ * even though the change is already applied to the local cache and queued for
+ * sync. Awaiting it directly freezes the UI (spinner never stops, no success
+ * toast) while the data is actually saved. So we race the write against a short
+ * timeout and report "queued" if it doesn't ack quickly.
+ *
+ * - Resolves { synced: true }  → the write reached the server (online).
+ * - Resolves { synced: false } → still pending after timeout (offline/slow);
+ *                                it's saved locally and will sync on reconnect.
+ * - Rejects                    → the write FAILED fast (e.g. permission/rules);
+ *                                callers should surface this as an error.
+ *
+ * @param {Promise} promise a Firestore write promise
+ * @param {{ timeoutMs?: number }} [opts]
+ * @returns {Promise<{ synced: boolean }>}
+ */
+export function commitLocal(promise, { timeoutMs = 1500 } = {}) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; resolve({ synced: false }); }
+    }, timeoutMs);
+    promise.then(
+      () => { if (!settled) { settled = true; clearTimeout(timer); resolve({ synced: true }); } },
+      (e) => { if (!settled) { settled = true; clearTimeout(timer); reject(e); } }
+    );
+  });
+}
+
+/**
  * Create a doc with a generated uuid id. Returns the id. Stamps the matching
  * `firestoreId` field; `isDirty:false` because a direct web write is already
  * "synced" (the app's queue uses isDirty for its own pending state).

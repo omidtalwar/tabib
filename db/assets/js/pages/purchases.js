@@ -1,6 +1,6 @@
 /** Purchases — record stock bought from suppliers. Adds stock + tracks payables.
  * commitPurchase increments each drug's stock and refreshes cost price atomically. */
-import { watch, readAll, commitPurchase, uuid, toDate } from "../repo.js";
+import { watch, readAll, commitPurchase, uuid, toDate, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, filterSelect, withButtonLoading } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -36,8 +36,8 @@ export default function render(outlet, ctx) {
       createdBy: ctx.session.email || "", isActive: true, createdAt: new Date().toISOString(), isDirty: false,
     };
     try {
-      await commitPurchase(pid, id, payload, items);
-      toast(t("pur.recorded"), { type: "ok" });
+      const { synced } = await commitLocal(commitPurchase(pid, id, payload, items));
+      toast(synced ? t("pur.recorded") : t("pur.recordedOffline"), { type: "ok" });
       cart.length = 0; supplierId = ""; invoiceNumber = ""; amountPaid = 0;
       mode = "history"; paint();
     } catch (e) { toast(e.message || "Error", { type: "error" }); }

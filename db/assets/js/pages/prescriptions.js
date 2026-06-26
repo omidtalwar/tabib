@@ -1,6 +1,6 @@
 /** Prescriptions — list + create, and "Dispense" which hands the items to the
  * POS (sales) to complete as a sale. */
-import { watch, create, toDate, uuid } from "../repo.js";
+import { watch, create, toDate, uuid, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, badge, fmtDate, money, loading, toast } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -28,12 +28,12 @@ export default function render(outlet, ctx) {
   async function save() {
     if (!cart.length) { toast(t("rx.cartEmpty"), { type: "warn" }); return; }
     const items = cart.map((c) => ({ drugId: c.drugId, drugName: c.drugName, dosage: c.dosage || "", frequency: "", durationDays: 0, quantity: num(c.quantity) || 1, refillsAllowed: 0, refillsUsed: 0 }));
-    await create(pid, "prescriptions", {
+    await commitLocal(create(pid, "prescriptions", {
       id: Date.now(), patientId: "", patientName, doctorName, doctorPhone,
       itemsJson: JSON.stringify(items), status: "pending",
       issuedDate: new Date().toISOString(), expiryDate: "", notes,
       dispensedAt: "", dispensedBy: "", isDirty: false, createdAt: new Date().toISOString(),
-    });
+    }));
     toast(t("rx.saved"), { type: "ok" });
     cart.length = 0; patientName = doctorName = doctorPhone = notes = "";
     mode = "list"; paint();

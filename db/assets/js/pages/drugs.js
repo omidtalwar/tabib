@@ -1,5 +1,5 @@
 /** Drugs / Catalog — live list + create/edit/restock/soft-delete. */
-import { watch, create, update, softDelete, adjustStock, recordAdjustment, uuid, readAll, toDate, toIso } from "../repo.js";
+import { watch, create, update, softDelete, adjustStock, recordAdjustment, uuid, readAll, toDate, toIso, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, badge, money, fmtDate, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -43,8 +43,8 @@ export default function render(outlet, ctx) {
           supplierId: d.supplierId || "", isControlled: !!d.isControlled,
           lastSyncedAt: new Date().toISOString(),
         };
-        if (existing) await update(pid, "drugs", existing.firestoreId || existing.id, payload);
-        else await create(pid, "drugs", { ...payload, isActive: true });
+        if (existing) await commitLocal(update(pid, "drugs", existing.firestoreId || existing.id, payload));
+        else await commitLocal(create(pid, "drugs", { ...payload, isActive: true }));
       },
     });
     if (ok) toast(existing ? t("drugs.updated") : t("drugs.added"), { type: "ok" });
@@ -64,7 +64,7 @@ export default function render(outlet, ctx) {
         const extra = { lastSyncedAt: new Date().toISOString() };
         if (v.batchNumber) extra.batchNumber = v.batchNumber;
         if (v.expiryDate) extra.expiryDate = toIso(v.expiryDate);
-        await adjustStock(pid, d.firestoreId || d.id, Number(v.qty), extra);
+        await commitLocal(adjustStock(pid, d.firestoreId || d.id, Number(v.qty), extra));
       },
     });
     if (ok) toast(t("drugs.stockUpdated"), { type: "ok" });
@@ -72,7 +72,7 @@ export default function render(outlet, ctx) {
 
   async function remove(d) {
     if (!(await confirmDialog(t("drugs.removeConfirm", { name: d.name }), { confirmLabel: t("common.remove"), danger: true }))) return;
-    await softDelete(pid, "drugs", d.firestoreId || d.id);
+    await commitLocal(softDelete(pid, "drugs", d.firestoreId || d.id));
     toast(t("drugs.removed"), { type: "ok" });
   }
 
@@ -93,12 +93,12 @@ export default function render(outlet, ctx) {
         { name: "reason", label: t("adj.reason"), type: "textarea", full: true },
       ],
       onSubmit: async (v) => {
-        await recordAdjustment(pid, uuid(), {
+        await commitLocal(recordAdjustment(pid, uuid(), {
           id: Date.now(), drugId: d.firestoreId || d.id, drugName: d.name,
           type: v.type, quantity: Number(v.quantity) || 0, reason: v.reason || "",
           date: new Date().toISOString(), recordedBy: ctx.session.email || "",
           createdAt: new Date().toISOString(), isDirty: false,
-        });
+        }));
       },
     });
     if (ok) toast(t("adj.recorded"), { type: "ok" });

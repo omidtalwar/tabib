@@ -1,5 +1,5 @@
 /** Sales — history + POS (atomic, offline-capable sale via commitSale). */
-import { watch, commitSale, commitReturn, update, uuid, toDate } from "../repo.js";
+import { watch, commitSale, commitReturn, update, uuid, toDate, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog, formModal, printContent, iconButton, esc, withButtonLoading } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -50,9 +50,12 @@ export default function render(outlet, ctx) {
       createdAt: new Date().toISOString(), receiptNumber: `RCP-${Date.now()}`, isDirty: false,
     };
     try {
-      await commitSale(pid, saleId, payload, items);
-      if (dispenseRxId) { try { await update(pid, "prescriptions", dispenseRxId, { status: "dispensed", dispensedAt: new Date().toISOString(), dispensedBy: ctx.session.email || "" }); } catch {} dispenseRxId = null; }
-      toast(t("sales.recorded", { total: money(total) }), { type: "ok" });
+      // commitLocal: offline the write is saved + queued but its Promise won't
+      // resolve until reconnect, so don't block the UI on the server ack.
+      const { synced } = await commitLocal(commitSale(pid, saleId, payload, items));
+      // Mark the prescription dispensed — fire-and-forget so it can't hang offline.
+      if (dispenseRxId) { update(pid, "prescriptions", dispenseRxId, { status: "dispensed", dispensedAt: new Date().toISOString(), dispensedBy: ctx.session.email || "" }).catch(() => {}); dispenseRxId = null; }
+      toast(synced ? t("sales.recorded", { total: money(total) }) : t("sales.recordedOffline", { total: money(total) }), { type: "ok" });
       printReceipt({ ...payload, firestoreId: saleId });
       cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0;
       mode = "history"; paint();
@@ -89,12 +92,13 @@ export default function render(outlet, ctx) {
         const retItems = items.map((it, i) => ({ drugId: it.drugId, drugName: it.drugName, quantity: Math.min(Number(v["q" + i]) || 0, it.quantity), unitPrice: it.unitPrice })).filter((x) => x.quantity > 0);
         if (!retItems.length) throw new Error(t("ret.none"));
         const totalRet = retItems.reduce((a, x) => a + x.unitPrice * x.quantity, 0);
-        await commitReturn(pid, uuid(), {
+        // commitLocal so an offline return doesn't freeze the modal on "Saving…".
+        await commitLocal(commitReturn(pid, uuid(), {
           id: Date.now(), saleId: s.firestoreId || s.id, receiptNumber: s.receiptNumber || "",
           itemsJson: JSON.stringify(retItems), total: totalRet, reason: v.reason || "",
           date: new Date().toISOString(), recordedBy: ctx.session.email || "",
           createdAt: new Date().toISOString(), isDirty: false,
-        }, retItems);
+        }, retItems));
       },
     });
     if (ok) toast(t("ret.recorded"), { type: "ok" });
