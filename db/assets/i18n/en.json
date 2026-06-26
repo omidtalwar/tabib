@@ -40,6 +40,10 @@
   "app.configMissingHint": "Add your web config in assets/js/firebase.js, then reload.",
   "app.pageFailed": "This page failed to load.",
   "app.pageFailedHint": "Check your connection and try again.",
+  "app.bootError": "Couldn't open the app",
+  "app.bootErrorHint": "Something went wrong while starting. Tap Reload to try again.",
+  "app.bootErrorOffline": "You're offline and the app isn't fully set up yet. Connect to the internet once, open the app, and let it finish loading — after that it works offline.",
+  "app.retry": "Reload",
 
   "menu.language": "Language",
   "menu.signOut": "Sign out",

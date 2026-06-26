@@ -133,6 +133,24 @@
       document.getElementById("out").addEventListener("click", () => logout().then(() => location.replace("./index.html")));
     }
 
+    // Never leave the user on a blank/stuck screen: if boot throws (e.g. an
+    // unexpected offline error), show a clear message + a Reload button instead.
+    function showBootError(err) {
+      console.error("Tabib boot failed:", err);
+      const offline = (typeof navigator !== "undefined") && navigator.onLine === false;
+      const boot = document.getElementById("boot");
+      if (!boot) return;
+      boot.classList.remove("hidden");
+      boot.innerHTML = `
+        <div class="card max-w-md text-center">
+          <p class="text-base font-semibold text-ink">${t("app.bootError")}</p>
+          <p class="mt-1 text-sm text-soft">${offline ? t("app.bootErrorOffline") : t("app.bootErrorHint")}</p>
+          <button id="bootRetry" class="btn-primary mt-4">${t("app.retry")}</button>
+        </div>`;
+      const b = document.getElementById("bootRetry");
+      if (b) b.addEventListener("click", () => location.reload());
+    }
+
     (async function main() {
       await initI18n();
       applyTranslations(document);
@@ -309,7 +327,7 @@
       if (session.role === "admin") {
         try { startAutoBackup(active); } catch (e) { console.warn("autobackup start", e); }
       }
-    })();
+    })().catch(showBootError);
   </script>
 </body>
 </html>
