@@ -89,7 +89,11 @@
       "Bash(git -C c:/xampp/htdocs/tabib add db/assets/js/firebase.js db/sw.js)",
       "Bash(/c/xampp/php/php.exe -r ' *)",
       "Bash(cd /c/xampp/htdocs/tabib/db && ls -la)",
-      "Read(//c/c/xampp/htdocs/tabib/**)"
+      "Read(//c/c/xampp/htdocs/tabib/**)",
+      "Bash(git rev-list *)",
+      "Bash(node --check app.html)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

@@ -124,6 +124,7 @@
     };
 
     function showUnlinked(email) {
+      if (typeof clearBootWatchdog === "function") clearBootWatchdog();
       document.getElementById("boot").innerHTML = `
         <div class="card max-w-md text-center">
           <p class="text-base font-semibold text-ink">${t("app.notLinkedTitle")}</p>
@@ -137,6 +138,7 @@
     // unexpected offline error), show a clear message + a Reload button instead.
     function showBootError(err) {
       console.error("Tabib boot failed:", err);
+      if (typeof clearBootWatchdog === "function") clearBootWatchdog();
       const offline = (typeof navigator !== "undefined") && navigator.onLine === false;
       const boot = document.getElementById("boot");
       if (!boot) return;
@@ -151,10 +153,20 @@
       if (b) b.addEventListener("click", () => location.reload());
     }
 
+    // Watchdog: if the app hasn't revealed the shell within 12s (e.g. an offline
+    // call hung), stop the endless spinner and show a clear message + Reload.
+    let _bootWatchdog = setTimeout(() => {
+      const shell = document.getElementById("shell");
+      if (shell && !shell.classList.contains("hidden")) return; // already loaded
+      showBootError(new Error("boot-timeout"));
+    }, 12000);
+    function clearBootWatchdog() { if (_bootWatchdog) { clearTimeout(_bootWatchdog); _bootWatchdog = null; } }
+
     (async function main() {
       await initI18n();
       applyTranslations(document);
       if (!isConfigured) {
+        clearBootWatchdog();
         document.getElementById("boot").innerHTML =
           `<div class="card max-w-md text-center"><p class="font-semibold text-warn">${t("app.configMissing")}</p>
            <p class="mt-1 text-sm text-soft">${t("app.configMissingHint")}</p></div>`;
@@ -264,6 +276,7 @@
       });
 
       // Reveal shell
+      clearBootWatchdog();
       document.getElementById("boot").classList.add("hidden");
       document.getElementById("shell").classList.remove("hidden");
 

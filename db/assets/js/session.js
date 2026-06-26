@@ -125,13 +125,18 @@ export async function requirePharmacySession({ loginUrl = "./index.html" } = {})
   }
 
   // Force-refresh the ID token so a newly-granted custom claim (pharmacyId/role)
-  // is picked up — but force-refresh needs the network, so OFFLINE fall back to
-  // the cached token (otherwise the portal would hang on the boot splash offline).
+  // is picked up — but force-refresh needs the network. Offline (or on a flaky
+  // network) it can HANG instead of failing fast, which would freeze the boot
+  // splash forever. So race it against a short timeout and fall back to the
+  // cached token, which is a local read and resolves instantly.
   let res;
   try {
-    res = await user.getIdTokenResult(true);
+    res = await Promise.race([
+      user.getIdTokenResult(true),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("token-refresh-timeout")), 4000)),
+    ]);
   } catch (e) {
-    res = await user.getIdTokenResult(); // cached claims (works offline)
+    res = await user.getIdTokenResult(); // cached claims (works offline / slow network)
   }
   const s = {
     uid: user.uid,
