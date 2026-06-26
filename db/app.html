@@ -89,11 +89,23 @@
     import { startRouter, navigate, PAGES, allowedFor } from "./assets/js/router.js";
     import { pharmacyRef, listOwnedPharmacies, getActivePharmacy, setActivePharmacy } from "./assets/js/repo.js";
     import { initI18n, t, applyTranslations, setLocale, getLocale, LOCALE_LABELS } from "./assets/js/i18n.js";
+    import { startAutoBackup } from "./assets/js/autobackup.js";
     import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     // PWA: keep the installed app shell available offline.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("SW register failed", e));
+    }
+
+    // Ask the browser to make our offline storage PERSISTENT so it isn't
+    // auto-evicted under disk pressure — this is what lets the cached app,
+    // data, and login survive long offline stretches (weeks/months). The
+    // request is idempotent and harmless if denied or unsupported.
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted()
+        .then((already) => (already ? true : navigator.storage.persist()))
+        .then((granted) => console.info("Persistent storage:", granted ? "granted" : "best-effort (may be evicted)"))
+        .catch(() => {});
     }
 
     // Windows 11 / Fluent-style nav: colored icon tile + label per page.
@@ -290,6 +302,13 @@
           updateFab(page);
         },
       });
+
+      // Always-on local backup of the whole pharmacy (admins only): keeps a
+      // full on-device snapshot, refreshed at boot, on reconnect, and on a
+      // timer while online. Manage/restore it from Settings → Backup.
+      if (session.role === "admin") {
+        try { startAutoBackup(active); } catch (e) { console.warn("autobackup start", e); }
+      }
     })();
   </script>
 </body>

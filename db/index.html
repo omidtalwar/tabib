@@ -160,6 +160,16 @@
       navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("SW register failed", e));
     }
 
+    // Ask the browser to make our offline storage PERSISTENT so it isn't
+    // auto-evicted under disk pressure — this keeps the cached app, data, and
+    // login alive through long offline stretches. Idempotent; safe if denied.
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted()
+        .then((already) => (already ? true : navigator.storage.persist()))
+        .then((granted) => console.info("Persistent storage:", granted ? "granted" : "best-effort (may be evicted)"))
+        .catch(() => {});
+    }
+
     // PWA install prompt → custom button (Android/desktop Chrome/Edge).
     let deferredPrompt = null;
     const installBtn = document.getElementById("installBtn");
