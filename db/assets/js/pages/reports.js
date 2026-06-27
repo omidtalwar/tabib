@@ -1,7 +1,7 @@
 /** Reports — Sales / Inventory / Expiry / Financial / Customers, with date-range
  * filter, KPIs, tables, CSV export and print. Client-side aggregation. */
 import { readAll, toDate } from "../repo.js";
-import { el, table, money, fmtDate, daysUntil, badge, loading, filterSelect, shamsiDate, downloadCSV, printContent, barChart, esc } from "../ui.js";
+import { el, table, money, fmtDate, fmtDateGreg, daysUntil, badge, loading, filterSelect, shamsiDate, downloadCSV, printContent, barChart, esc } from "../ui.js";
 import { t } from "../i18n.js";
 
 const TABS = ["sales", "inventory", "expiry", "purchases", "financial", "customers"];
@@ -163,13 +163,13 @@ export default function render(outlet, ctx) {
     const kpis = [[t("rep.expiringSoon"), String(expiring.length)], [t("status.expired"), String(expired.length)], [t("rep.expiringValue"), money(expiringVal)], [t("rep.expiredLoss"), money(expiredVal)]];
     current.title = t("rep.title") + " — " + t("rep.tabExpiry"); current.kpis = kpis;
     current.csv = [[t("drugs.colName"), t("rep.batch"), t("drugs.colExpiry"), t("rep.days"), t("drugs.colStock"), t("rep.lossValue")],
-      ...[...expiring, ...expired].map((x) => [x.d.name, x.d.batchNumber || "", fmtDate(toDate(x.d.expiryDate)), x.n, x.d.stockQuantity ?? 0, val(x.d).toFixed(2)])];
+      ...[...expiring, ...expired].map((x) => [x.d.name, x.d.batchNumber || "", fmtDateGreg(toDate(x.d.expiryDate)), x.n, x.d.stockQuantity ?? 0, val(x.d).toFixed(2)])];
 
     const win = filterSelect([30, 60, 90].map((w) => ({ value: String(w), label: t("rep.within", { n: w }) })), String(expiryWindow), (v) => { expiryWindow = +v; paint(); }, t("rep.window"));
     const exTable = (rows, empty) => table([
       { label: t("drugs.colName"), render: (x) => x.d.name || "—" },
       { label: t("rep.batch"), render: (x) => x.d.batchNumber || "—" },
-      { label: t("drugs.colExpiry"), render: (x) => fmtDate(toDate(x.d.expiryDate)) },
+      { label: t("drugs.colExpiry"), render: (x) => fmtDateGreg(toDate(x.d.expiryDate)) },
       { label: t("rep.days"), html: true, render: (x) => x.n < 0 ? badge(t("status.expired"), "danger") : badge(`${x.n}d`, x.n <= 30 ? "warn" : "muted") },
       { label: t("drugs.colStock"), render: (x) => String(x.d.stockQuantity ?? 0) },
       { label: t("rep.lossValue"), render: (x) => money(val(x.d)) },

@@ -1,6 +1,6 @@
 /** Inventory — low-stock, out-of-stock, and expiry views (read-only). */
 import { watch, toDate } from "../repo.js";
-import { el, table, badge, money, fmtDate, daysUntil, loading } from "../ui.js";
+import { el, table, badge, money, fmtDateGreg, daysUntil, loading } from "../ui.js";
 import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
@@ -40,7 +40,7 @@ export default function render(outlet, ctx) {
 
     const expiryCol = [{ label: t("inv.colExpiry"), html: false, render: (d) => {
       const date = toDate(d.expiryDate); const n = daysUntil(date);
-      const w = el("span", {}, fmtDate(date) + " ");
+      const w = el("span", {}, fmtDateGreg(date) + " ");
       if (n != null && n < 0) w.append(el("span", { html: badge(t("status.expired"), "danger") }));
       else if (n != null && n <= 30) w.append(el("span", { html: badge(`${n}d`, "warn") }));
       return w;

@@ -1,6 +1,6 @@
 /** Drugs / Catalog — live list + create/edit/restock/soft-delete. */
 import { watch, create, update, softDelete, adjustStock, recordAdjustment, uuid, readAll, toDate, toIso, commitLocal } from "../repo.js";
-import { el, table, searchInput, toolbar, badge, money, fmtDate, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect } from "../ui.js";
+import { el, table, searchInput, toolbar, badge, money, fmtDate, fmtDateGreg, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect } from "../ui.js";
 import { t } from "../i18n.js";
 
 const CATEGORIES = ["Antibiotic", "Analgesic", "Antiseptic", "Vitamin", "Cardiac", "Diabetes", "Respiratory", "Other"];
@@ -27,7 +27,7 @@ export default function render(outlet, ctx) {
         { name: "reorderThreshold", label: t("drugs.fReorder"), type: "number", min: "0" },
         { name: "unitPrice", label: t("drugs.fUnitPrice"), type: "number", step: "0.01", min: "0" },
         { name: "sellingPrice", label: t("drugs.fSellingPrice"), type: "number", step: "0.01", min: "0" },
-        { name: "expiryDate", label: t("drugs.fExpiry"), type: "jdate" },
+        { name: "expiryDate", label: t("drugs.fExpiry"), type: "gdate" },
         { name: "batchNumber", label: t("drugs.fBatch") },
         { name: "supplierId", label: t("drugs.fSupplier"), type: "select", options: supplierOpts },
         { name: "description", label: t("drugs.fDescription"), type: "textarea", full: true },
@@ -58,7 +58,7 @@ export default function render(outlet, ctx) {
       fields: [
         { name: "qty", label: t("drugs.restockQty"), type: "number", required: true, min: "1" },
         { name: "batchNumber", label: t("drugs.fBatch") },
-        { name: "expiryDate", label: t("drugs.fExpiry"), type: "jdate" },
+        { name: "expiryDate", label: t("drugs.fExpiry"), type: "gdate" },
       ],
       onSubmit: async (v) => {
         const extra = { lastSyncedAt: new Date().toISOString() };
@@ -129,7 +129,7 @@ export default function render(outlet, ctx) {
     const date = toDate(d.expiryDate);
     if (!date) return "—";
     const ex = expiryStatus(d.expiryDate);
-    const wrap = el("span", {}, fmtDate(date) + " ");
+    const wrap = el("span", {}, fmtDateGreg(date) + " ");
     if (ex.key === "expired") wrap.append(el("span", { html: badge(t("status.expired"), "danger") }));
     else if (ex.key === "expiring") wrap.append(el("span", { html: badge(ex.label, "warn") }));
     return wrap;

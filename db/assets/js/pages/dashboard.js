@@ -5,7 +5,7 @@
  * Every card/alert deep-links to the relevant page.
  */
 import { watch, toDate } from "../repo.js";
-import { el, money, fmtDate, daysUntil, sparkline, barChart, loading } from "../ui.js";
+import { el, money, fmtDate, fmtDateGreg, daysUntil, sparkline, barChart, loading } from "../ui.js";
 import { t } from "../i18n.js";
 
 export default function render(outlet, ctx) {
@@ -205,7 +205,7 @@ export default function render(outlet, ctx) {
     const recent = [...state.sales].sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0)).slice(0, 6)
       .map((s) => rowEl(s.patientName || t("dash.walkIn"), money(s.total), `${s.receiptNumber || ""} · ${s.staffName || ""}`.replace(/^ · | · $/g, "")));
     const topList = topProducts.slice(0, 6).map(([n, q]) => rowEl(n, t("dash.sold", { n: q })));
-    const expSoon = expiring.slice(0, 6).map((x) => rowEl(x.d.name || "—", `${x.n}d`, fmtDate(toDate(x.d.expiryDate))));
+    const expSoon = expiring.slice(0, 6).map((x) => rowEl(x.d.name || "—", `${x.n}d`, fmtDateGreg(toDate(x.d.expiryDate))));
 
     const lists = el("div", { class: "grid gap-5 lg:grid-cols-3" }, [
       listCard(t("dash.recentSales"), recent, { empty: t("dash.noSales"), action: { label: t("dash.viewAll"), onClick: () => go("sales") } }),

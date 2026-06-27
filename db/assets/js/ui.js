@@ -107,6 +107,19 @@ export function fmtDate(date) {
   return formatJalali(d);
 }
 
+/** International (Gregorian) date: "31 Dec 2025". Use for drug expiry, which is
+ *  printed on packaging in the Gregorian calendar. */
+export function fmtDateGreg(date) {
+  if (!date) return "—";
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return "—";
+  try {
+    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
 /** Shamsi with month name: "15 Hamal 1403". */
 export function fmtDateLong(date) {
   if (!date) return "—";
@@ -303,6 +316,12 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
         const sd = shamsiDate(v);
         input = sd.node;
         jsel = sd;
+      } else if (f.type === "gdate") {
+        // International (Gregorian) date — native date picker (shows 2025-style
+        // years). Initial value coerced to YYYY-MM-DD; emitted as an ISO string.
+        let gv = "";
+        if (v) { const dd = v instanceof Date ? v : new Date(v); if (!isNaN(dd.getTime())) gv = dd.toISOString().slice(0, 10); }
+        input = el("input", { id, type: "date", class: "field", value: gv });
       } else if (f.type === "combo") {
         // free text with suggestions (editable categories etc.)
         const listId = id + "_list";
@@ -353,6 +372,7 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
           let val;
           if (f.type === "checkbox") val = input.checked;
           else if (f.type === "jdate") val = jsel.value();
+          else if (f.type === "gdate") val = input.value ? new Date(input.value).toISOString() : null;
           else if (f.type === "number") val = input.value === "" ? null : Number(input.value);
           else val = input.value.trim();
           if (f.required && (val === "" || val == null)) {
