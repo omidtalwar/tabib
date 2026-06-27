@@ -93,7 +93,10 @@
       "Bash(git rev-list *)",
       "Bash(node --check app.html)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(curl -s -m 20 \"https://tabib.af/db/sw.js\")",
+      "Bash(echo \"--- exit: $? ---\")",
+      "Bash(curl -s -m 20 \"https://tabib.af/db/manifest.webmanifest\")"
     ]
   }
 }
