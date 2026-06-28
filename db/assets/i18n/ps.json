@@ -124,6 +124,7 @@
   "drugs.fGeneric": "عمومي نوم",
   "drugs.fBrand": "برنډ",
   "drugs.fCategory": "کټګوري",
+  "drugs.categoryPh": "د کټګورۍ لټون لپاره ټایپ کړئ…",
   "drugs.fUnit": "واحد",
   "drugs.fBarcode": "بارکوډ",
   "drugs.fStock": "د موجودي مقدار",

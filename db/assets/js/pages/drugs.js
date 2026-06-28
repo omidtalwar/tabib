@@ -3,7 +3,46 @@ import { watch, create, update, softDelete, adjustStock, recordAdjustment, uuid,
 import { el, table, searchInput, toolbar, badge, money, fmtDate, fmtDateGreg, stockStatus, expiryStatus, loading, formModal, confirmDialog, toast, iconButton, ICON, filterSelect } from "../ui.js";
 import { t } from "../i18n.js";
 
-const CATEGORIES = ["Antibiotic", "Analgesic", "Antiseptic", "Vitamin", "Cardiac", "Diabetes", "Respiratory", "Other"];
+// Full therapeutic category list. Keep these strings identical to the Flutter
+// app (lib/features/pharmacy/screens/drugs/add_edit_drug_screen.dart) so the
+// `category` field stays consistent across web + mobile. Change log:
+// Flutter app lib/pages/manage/DRUG_CATEGORIES.md.
+const CATEGORIES = [
+  "Analgesics & Antipyretics",
+  "NSAIDs & Anti-inflammatory",
+  "Opioid Analgesics",
+  "Antibiotics",
+  "Antivirals",
+  "Antifungals",
+  "Antiparasitic & Antimalarial",
+  "Antitubercular",
+  "Cardiovascular (Hypertension, Heart)",
+  "Lipid-Lowering (Statins)",
+  "Anticoagulants & Antiplatelets",
+  "Respiratory (Asthma, COPD, Cough & Cold)",
+  "Antihistamines & Anti-allergic",
+  "Gastrointestinal (Antacids, PPIs, Antiemetics)",
+  "Laxatives & Antidiarrheals",
+  "Antidiabetics",
+  "Thyroid & Hormonal",
+  "Corticosteroids",
+  "Contraceptives & Reproductive Health",
+  "CNS & Psychiatric (Antidepressants, Antipsychotics)",
+  "Anticonvulsants & Antiepileptics",
+  "Sedatives & Anxiolytics",
+  "Muscle Relaxants",
+  "Vitamins, Minerals & Supplements",
+  "Hematinics (Iron, B12, Folic Acid)",
+  "Dermatological (Topical)",
+  "Ophthalmic (Eye)",
+  "ENT (Ear, Nose, Throat)",
+  "Urological & Renal",
+  "Vaccines & Immunologicals",
+  "Oncology / Cytotoxic",
+  "IV Fluids & Electrolytes",
+  "Other / Miscellaneous",
+];
+const DEFAULT_CATEGORY = "Other / Miscellaneous";
 const UNITS = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Sachet", "Other"];
 
 export default function render(outlet, ctx) {
@@ -15,12 +54,12 @@ export default function render(outlet, ctx) {
     const supplierOpts = [{ value: "", label: t("drugs.supNone") }, ...suppliers.map((s) => ({ value: s.firestoreId || s.id, label: s.name || "Unnamed" }))];
     const ok = await formModal({
       title: existing ? t("drugs.editTitle") : t("drugs.addTitle"),
-      values: existing ? { ...existing } : { unit: "Tablet", category: "Other", reorderThreshold: 10, isActive: true },
+      values: existing ? { ...existing } : { unit: "Tablet", category: DEFAULT_CATEGORY, reorderThreshold: 10, isActive: true },
       fields: [
         { name: "name", label: t("drugs.fName"), required: true },
         { name: "genericName", label: t("drugs.fGeneric") },
         { name: "brand", label: t("drugs.fBrand") },
-        { name: "category", label: t("drugs.fCategory"), type: "select", options: CATEGORIES, default: "Other" },
+        { name: "category", label: t("drugs.fCategory"), type: "combo", options: CATEGORIES, placeholder: t("drugs.categoryPh") },
         { name: "unit", label: t("drugs.fUnit"), type: "select", options: UNITS, default: "Tablet" },
         { name: "barcode", label: t("drugs.fBarcode") },
         { name: "stockQuantity", label: t("drugs.fStock"), type: "number", min: "0" },
@@ -35,7 +74,7 @@ export default function render(outlet, ctx) {
       ],
       onSubmit: async (d) => {
         const payload = {
-          name: d.name, genericName: d.genericName, brand: d.brand, category: d.category || "Other",
+          name: d.name, genericName: d.genericName, brand: d.brand, category: d.category || DEFAULT_CATEGORY,
           barcode: d.barcode, unit: d.unit || "Tablet", description: d.description,
           stockQuantity: d.stockQuantity ?? 0, reorderThreshold: d.reorderThreshold ?? 10,
           unitPrice: d.unitPrice ?? 0, sellingPrice: d.sellingPrice ?? 0,

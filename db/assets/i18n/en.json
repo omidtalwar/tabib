@@ -124,6 +124,7 @@
   "drugs.fGeneric": "Generic name",
   "drugs.fBrand": "Brand",
   "drugs.fCategory": "Category",
+  "drugs.categoryPh": "Type to search a category…",
   "drugs.fUnit": "Unit",
   "drugs.fBarcode": "Barcode",
   "drugs.fStock": "Stock quantity",

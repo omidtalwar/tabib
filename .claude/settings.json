@@ -96,7 +96,12 @@
       "Bash(git push *)",
       "Bash(curl -s -m 20 \"https://tabib.af/db/sw.js\")",
       "Bash(echo \"--- exit: $? ---\")",
-      "Bash(curl -s -m 20 \"https://tabib.af/db/manifest.webmanifest\")"
+      "Bash(curl -s -m 20 \"https://tabib.af/db/manifest.webmanifest\")",
+      "Bash(cd \"C:\\\\Users\\\\aimal\\\\Documents\\\\Software-Projects\\\\tabib1\\\\tabib1\\\\lib\\\\pages\")",
+      "Bash(ls manage/)",
+      "Bash(flutter analyze *)",
+      "Bash(node --check assets/js/pages/drugs.js)",
+      "Bash(node -e 'JSON.parse\\(require\\('\\\\''fs'\\\\''\\).readFileSync\\('\\\\''__TRACKED_VAR__.json'\\\\'','\\\\''utf8'\\\\''\\)\\); console.log\\('\\\\''__TRACKED_VAR__.json OK'\\\\''\\)')"
     ]
   }
 }

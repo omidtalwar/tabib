@@ -124,6 +124,7 @@
   "drugs.fGeneric": "نام عمومی",
   "drugs.fBrand": "برند",
   "drugs.fCategory": "دسته",
+  "drugs.categoryPh": "برای جست‌وجوی دسته تایپ کنید…",
   "drugs.fUnit": "واحد",
   "drugs.fBarcode": "بارکد",
   "drugs.fStock": "تعداد موجودی",
