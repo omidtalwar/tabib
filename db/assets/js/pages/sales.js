@@ -1,5 +1,5 @@
 /** Sales — history + POS (atomic, offline-capable sale via commitSale). */
-import { watch, commitSale, commitReturn, update, uuid, toDate, commitLocal } from "../repo.js";
+import { watch, commitSale, commitReturn, update, create, uuid, toDate, commitLocal } from "../repo.js";
 import { el, table, searchInput, toolbar, money, fmtDate, badge, loading, toast, confirmDialog, formModal, printContent, iconButton, esc, withButtonLoading } from "../ui.js";
 import { t } from "../i18n.js";
 
@@ -11,7 +11,7 @@ export default function render(outlet, ctx) {
   let mode = "history";
   let drugQuery = "", renderDrugResults = () => {};
   const cart = [];
-  let patientName = "", paymentMethod = "cash", discountPercent = 0, insuranceCoverage = 0;
+  let patientName = "", paymentMethod = "cash", discountPercent = 0, insuranceCoverage = 0, amountPaid = "";
 
   // Dispense handoff from the prescriptions page: open POS pre-filled.
   let pendingDispense = null, dispenseRxId = null;
@@ -39,6 +39,13 @@ export default function render(outlet, ctx) {
     if (controlled.length && !(await confirmDialog(t("sales.controlledWarn", { names: controlled.map((c) => c.drugName).join(", ") }), { confirmLabel: t("sales.sell") }))) return;
 
     const { subtotal, discountAmount, total } = totals();
+    const paid = Math.max(0, Math.min(total, Number(amountPaid === "" ? total : amountPaid) || 0));
+    const balanceDue = Math.max(0, total - paid);
+    const salePaymentMethod = balanceDue > 0 ? "credit" : paymentMethod;
+    if (balanceDue > 0 && !patientName.trim()) {
+      toast(t("sales.creditNeedsPatient"), { type: "warn" });
+      return;
+    }
     const items = cart.map((c) => ({ drugId: c.drugId, drugName: c.drugName, quantity: c.quantity, unitPrice: c.unitPrice, subtotal: c.unitPrice * c.quantity }));
     const saleId = uuid();
     const payload = {
@@ -46,18 +53,27 @@ export default function render(outlet, ctx) {
       itemsJson: JSON.stringify(items),
       subtotal, discountPercent: Number(discountPercent) || 0, discountAmount,
       insuranceCoverage: Number(insuranceCoverage) || 0, total,
-      paymentMethod, staffName: ctx.session.email || "",
+      paymentMethod: salePaymentMethod, amountPaid: paid, balanceDue,
+      creditStatus: balanceDue > 0 ? (paid > 0 ? "partial" : "unpaid") : "paid",
+      staffName: ctx.session.email || "",
       createdAt: new Date().toISOString(), receiptNumber: `RCP-${Date.now()}`, isDirty: false,
     };
     try {
       // commitLocal: offline the write is saved + queued but its Promise won't
       // resolve until reconnect, so don't block the UI on the server ack.
       const { synced } = await commitLocal(commitSale(pid, saleId, payload, items));
+      if (balanceDue > 0 && paid > 0) {
+        commitLocal(create(pid, "customer_payments", {
+          id: Date.now(), patientName: patientName.trim(), amount: paid, paymentMethod,
+          note: t("sales.partialPaymentNote", { receipt: payload.receiptNumber }),
+          date: new Date().toISOString(), recordedBy: ctx.session.email || "", createdAt: new Date().toISOString(), isDirty: false,
+        })).catch(() => {});
+      }
       // Mark the prescription dispensed — fire-and-forget so it can't hang offline.
       if (dispenseRxId) { update(pid, "prescriptions", dispenseRxId, { status: "dispensed", dispensedAt: new Date().toISOString(), dispensedBy: ctx.session.email || "" }).catch(() => {}); dispenseRxId = null; }
-      toast(synced ? t("sales.recorded", { total: money(total) }) : t("sales.recordedOffline", { total: money(total) }), { type: "ok" });
+      toast(balanceDue > 0 ? t("sales.recordedCredit", { total: money(total), paid: money(paid), due: money(balanceDue) }) : (synced ? t("sales.recorded", { total: money(total) }) : t("sales.recordedOffline", { total: money(total) })), { type: "ok" });
       printReceipt({ ...payload, firestoreId: saleId });
-      cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0;
+      cart.length = 0; patientName = ""; discountPercent = 0; insuranceCoverage = 0; amountPaid = "";
       mode = "history"; paint();
     } catch (e) {
       toast(e.message || t("sales.couldnt"), { type: "error" });
@@ -74,6 +90,8 @@ export default function render(outlet, ctx) {
         <span class="kpi"><b>${esc(money(s.subtotal))}</b><span>${t("rcp.subtotal")}</span></span>
         <span class="kpi"><b>${esc(money((s.discountAmount || 0) + (s.insuranceCoverage || 0)))}</b><span>${t("rcp.discount")}</span></span>
         <span class="kpi"><b>${esc(money(s.total))}</b><span>${t("rcp.total")}</span></span>
+        <span class="kpi"><b>${esc(money(s.amountPaid ?? s.total))}</b><span>${t("rcp.paid")}</span></span>
+        <span class="kpi"><b>${esc(money(s.balanceDue || 0))}</b><span>${t("rcp.due")}</span></span>
       </div>
       <p style="margin-top:16px;text-align:center">${t("rcp.thanks")}</p>`);
   }
