@@ -43,7 +43,13 @@ const CATEGORIES = [
   "Other / Miscellaneous",
 ];
 const DEFAULT_CATEGORY = "Other / Miscellaneous";
-const UNITS = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Sachet", "Other"];
+// Dosage forms / units. Keep identical to the Flutter app (_kUnits in
+// add_edit_drug_screen.dart) so the `unit` field matches across web + mobile.
+const UNITS = [
+  "Tablet", "Capsule", "Syrup", "Injection", "Cream", "Ointment", "Drops",
+  "Inhaler", "Spray", "Gel", "Lotion", "Suppository", "Sachet", "Powder",
+  "Solution", "Patch", "Other",
+];
 
 export default function render(outlet, ctx) {
   const pid = ctx.pharmacyId;
@@ -52,25 +58,39 @@ export default function render(outlet, ctx) {
   async function drugForm(existing) {
     const suppliers = await readAll(pid, "suppliers").catch(() => []);
     const supplierOpts = [{ value: "", label: t("drugs.supNone") }, ...suppliers.map((s) => ({ value: s.firestoreId || s.id, label: s.name || "Unnamed" }))];
+    // Pre-open an optional section in edit mode when it already holds data.
+    const hasMore = !!(existing && (existing.genericName || existing.brand || existing.barcode ||
+      existing.unitPrice || existing.description ||
+      (existing.reorderThreshold != null && existing.reorderThreshold !== 10)));
+    const hasBatch = !!(existing && (existing.expiryDate || existing.batchNumber || existing.supplierId || existing.isControlled));
     const ok = await formModal({
       title: existing ? t("drugs.editTitle") : t("drugs.addTitle"),
+      wide: true,
       values: existing ? { ...existing } : { unit: "Tablet", category: DEFAULT_CATEGORY, reorderThreshold: 10, isActive: true },
       fields: [
+        // Essentials — always visible.
         { name: "name", label: t("drugs.fName"), required: true },
-        { name: "genericName", label: t("drugs.fGeneric") },
-        { name: "brand", label: t("drugs.fBrand") },
         { name: "category", label: t("drugs.fCategory"), type: "combo", options: CATEGORIES, placeholder: t("drugs.categoryPh") },
         { name: "unit", label: t("drugs.fUnit"), type: "select", options: UNITS, default: "Tablet" },
-        { name: "barcode", label: t("drugs.fBarcode") },
         { name: "stockQuantity", label: t("drugs.fStock"), type: "number", min: "0" },
-        { name: "reorderThreshold", label: t("drugs.fReorder"), type: "number", min: "0" },
-        { name: "unitPrice", label: t("drugs.fUnitPrice"), type: "number", step: "0.01", min: "0" },
         { name: "sellingPrice", label: t("drugs.fSellingPrice"), type: "number", step: "0.01", min: "0" },
-        { name: "expiryDate", label: t("drugs.fExpiry"), type: "gdate" },
-        { name: "batchNumber", label: t("drugs.fBatch") },
-        { name: "supplierId", label: t("drugs.fSupplier"), type: "select", options: supplierOpts },
-        { name: "description", label: t("drugs.fDescription"), type: "textarea", full: true },
-        { name: "isControlled", label: t("drugs.fControlled"), type: "checkbox", help: t("drugs.fControlledHelp") },
+
+        // Optional — revealed by a switch so the form stays short.
+        { name: "_more", type: "section", label: t("drugs.secMore"), hint: t("common.optional"), default: hasMore,
+          icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>' },
+        { name: "genericName", label: t("drugs.fGeneric"), section: "_more" },
+        { name: "brand", label: t("drugs.fBrand"), section: "_more" },
+        { name: "barcode", label: t("drugs.fBarcode"), section: "_more" },
+        { name: "unitPrice", label: t("drugs.fUnitPrice"), type: "number", step: "0.01", min: "0", section: "_more" },
+        { name: "reorderThreshold", label: t("drugs.fReorder"), type: "number", min: "0", section: "_more" },
+        { name: "description", label: t("drugs.fDescription"), type: "textarea", full: true, section: "_more" },
+
+        { name: "_batch", type: "section", label: t("drugs.secBatch"), hint: t("common.optional"), default: hasBatch,
+          icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' },
+        { name: "expiryDate", label: t("drugs.fExpiry"), type: "gdate", section: "_batch" },
+        { name: "batchNumber", label: t("drugs.fBatch"), section: "_batch" },
+        { name: "supplierId", label: t("drugs.fSupplier"), type: "select", options: supplierOpts, section: "_batch" },
+        { name: "isControlled", label: t("drugs.fControlled"), type: "checkbox", help: t("drugs.fControlledHelp"), section: "_batch" },
       ],
       onSubmit: async (d) => {
         const payload = {

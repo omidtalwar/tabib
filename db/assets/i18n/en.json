@@ -1,5 +1,6 @@
 {
   "common.save": "Save",
+  "common.optional": "Optional",
   "common.saving": "Saving…",
   "common.cancel": "Cancel",
   "common.add": "Add",
@@ -125,6 +126,8 @@
   "drugs.fBrand": "Brand",
   "drugs.fCategory": "Category",
   "drugs.categoryPh": "Type to search a category…",
+  "drugs.secMore": "More details",
+  "drugs.secBatch": "Batch, expiry & supplier",
   "drugs.fUnit": "Unit",
   "drugs.fBarcode": "Barcode",
   "drugs.fStock": "Stock quantity",

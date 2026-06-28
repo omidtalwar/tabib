@@ -1,5 +1,6 @@
 {
   "common.save": "ثبت",
+  "common.optional": "اختیاري",
   "common.saving": "په ثبتولو کې…",
   "common.cancel": "لغوه",
   "common.add": "اضافه",
@@ -125,6 +126,8 @@
   "drugs.fBrand": "برنډ",
   "drugs.fCategory": "کټګوري",
   "drugs.categoryPh": "د کټګورۍ لټون لپاره ټایپ کړئ…",
+  "drugs.secMore": "نور جزئیات",
+  "drugs.secBatch": "بَچ، نیټه او تأمین‌کوونکی",
   "drugs.fUnit": "واحد",
   "drugs.fBarcode": "بارکوډ",
   "drugs.fStock": "د موجودي مقدار",

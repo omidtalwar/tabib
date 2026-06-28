@@ -1,5 +1,6 @@
 {
   "common.save": "ذخیره",
+  "common.optional": "اختیاری",
   "common.saving": "در حال ذخیره…",
   "common.cancel": "لغو",
   "common.add": "افزودن",
@@ -125,6 +126,8 @@
   "drugs.fBrand": "برند",
   "drugs.fCategory": "دسته",
   "drugs.categoryPh": "برای جست‌وجوی دسته تایپ کنید…",
+  "drugs.secMore": "جزئیات بیشتر",
+  "drugs.secBatch": "بچ، انقضا و تأمین‌کننده",
   "drugs.fUnit": "واحد",
   "drugs.fBarcode": "بارکد",
   "drugs.fStock": "تعداد موجودی",

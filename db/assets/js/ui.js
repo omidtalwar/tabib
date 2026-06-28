@@ -47,7 +47,7 @@ export function toast(message, { type = "info", timeout = 3500 } = {}) {
 
 /* ---------------- modal ---------------- */
 /** Open a modal. `render(close)` returns a DOM node. Returns a close() fn. */
-export function modal(render, { onClose } = {}) {
+export function modal(render, { onClose, maxWidthPx } = {}) {
   let closed = false;
   const close = () => {
     if (closed) return; closed = true;
@@ -63,6 +63,8 @@ export function modal(render, { onClose } = {}) {
     class: "anim-pop relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 transition-all duration-150",
     role: "dialog", "aria-modal": "true",
   });
+  // Optional wider modal — set inline since the compiled CSS only ships max-w-lg.
+  if (maxWidthPx) panel.style.maxWidth = maxWidthPx;
   panel.append(render(close));
   const overlay = el("div", {
     class: "anim-fade fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 backdrop-blur-sm transition-opacity duration-150 sm:items-center sm:p-4",
@@ -292,12 +294,13 @@ export function table(columns, rows, { empty = "Nothing here yet", emptyHint = "
  * values: initial values (edit mode). onSubmit(data) where data is typed:
  *   number->Number, checkbox->bool, date->"YYYY-MM-DD" string, else string.
  * Return a Promise that resolves true on save, false on cancel. */
-export function formModal({ title, fields, values = {}, submitLabel = t("common.save"), onSubmit }) {
+export function formModal({ title, fields, values = {}, submitLabel = t("common.save"), onSubmit, wide = false }) {
   return new Promise((resolve) => {
     const inputs = {};
     const err = el("p", { class: "hidden text-sm font-semibold text-danger" });
 
-    const body = el("div", { class: "grid gap-3 sm:grid-cols-2" }, fields.map((f) => {
+    // Build one field's wrapper (label + control) and register its input.
+    const buildField = (f) => {
       const id = `f_${f.name}`;
       let input, jsel = null, datalistNode = null;
       const v = values[f.name];
@@ -336,7 +339,7 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
       }
       inputs[f.name] = { input, f, jsel };
       const isWide = f.full || f.type === "textarea" || f.type === "jdate";
-      const wrap = el("div", { class: isWide ? "sm:col-span-2" : "" }, [
+      return el("div", { class: isWide ? "sm:col-span-2" : "" }, [
         el("label", { class: "label", for: id }, f.label + (f.required ? " *" : "") + (f.type === "jdate" ? " (Shamsi)" : "")),
         f.type === "checkbox"
           ? el("label", { class: "flex items-center gap-2 text-sm text-ink" }, [input, f.help || ""])
@@ -344,8 +347,57 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
         datalistNode,
         f.help && f.type !== "checkbox" ? el("p", { class: "mt-1 text-xs text-soft" }, f.help) : null,
       ]);
-      return wrap;
-    }));
+    };
+
+    // A field of type "section" renders a switch header; later fields tagged
+    // { section: <name> } live inside it and stay hidden until the switch is on
+    // (smooth grid-rows transition). Keeps the form short — only essentials show.
+    const body = el("div", { class: "grid gap-3 sm:grid-cols-2" });
+    const sectionGrids = {};
+    for (const f of fields) {
+      if (f.type === "section") {
+        // Inline styles for the switch + collapse: the compiled tailwind.css is
+        // a fixed subset (no peer/sr-only/arbitrary props), so we don't rely on
+        // utilities for these dynamic bits.
+        const innerGrid = el("div", { class: "grid gap-3 sm:grid-cols-2" });
+        innerGrid.style.padding = "12px 2px 2px";
+        const region = el("div", { class: "sm:col-span-2" }, el("div", { class: "overflow-hidden" }, innerGrid));
+        region.style.display = "grid";
+        region.style.transition = "grid-template-rows .22s ease";
+        let open = !!f.default;
+        const knob = el("span");
+        knob.style.cssText = "position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:9999px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s ease;";
+        const track = el("span", {}, knob);
+        track.style.cssText = "position:relative;display:inline-block;flex:none;width:42px;height:24px;border-radius:9999px;transition:background .2s ease;";
+        const paint = () => {
+          region.style.gridTemplateRows = open ? "1fr" : "0fr";
+          track.style.background = open ? "rgb(14 165 155)" : "rgb(203 213 225)";
+          knob.style.transform = open ? "translateX(18px)" : "translateX(0)";
+        };
+        paint();
+        const header = el("label", {
+          class: "sm:col-span-2 flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 hover:bg-black/5",
+        }, [
+          el("span", { class: "flex items-center gap-2 text-sm font-semibold text-ink" }, [
+            el("span", { class: "text-soft", html: f.icon || '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>' }),
+            f.label,
+          ]),
+          el("span", { class: "flex items-center gap-2 text-xs text-soft" }, [
+            f.hint ? el("span", {}, f.hint) : null,
+            track,
+          ]),
+        ]);
+        header.style.cursor = "pointer";
+        header.style.userSelect = "none";
+        header.addEventListener("click", (e) => { e.preventDefault(); open = !open; paint(); });
+        sectionGrids[f.name] = innerGrid;
+        body.append(header, region);
+        continue;
+      }
+      const wrap = buildField(f);
+      if (f.section && sectionGrids[f.section]) sectionGrids[f.section].append(wrap);
+      else body.append(wrap);
+    }
 
     const close = modal((closeFn) => {
       const submitBtn = el("button", { type: "button", class: "btn-primary min-w-[96px]", onclick: submit }, submitLabel);
@@ -396,7 +448,7 @@ export function formModal({ title, fields, values = {}, submitLabel = t("common.
         }
       }
       return panel;
-    }, { onClose: () => resolve(false) });
+    }, { onClose: () => resolve(false), maxWidthPx: wide ? "42rem" : undefined });
   });
 }
 
