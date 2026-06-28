@@ -14,7 +14,7 @@ import { t } from "./i18n.js";
 
 const PAGES = [
   "dashboard", "drugs", "inventory", "sales",
-  "prescriptions", "patients", "suppliers", "purchases", "expenses", "reports", "settings",
+  "prescriptions", "patients", "suppliers", "purchases", "expenses", "reports", "support", "settings",
 ];
 const DEFAULT_PAGE = "dashboard";
 

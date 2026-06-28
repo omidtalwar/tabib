@@ -120,6 +120,7 @@
       purchases:     { label: "Purchases",     color: "#D97706", icon: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2l2.4 12h11l2-8H6.2"/>' },
       expenses:      { label: "Expenses",      color: "#E8554E", icon: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>' },
       reports:       { label: "Reports",       color: "#3B82F6", icon: '<path d="M5 20V10M12 20V4M19 20v-7"/>' },
+      support:       { label: "Support",       color: "#0F766E", icon: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>' },
       settings:      { label: "Settings",      color: "#6C7B7A", icon: '<circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>' },
     };
 
@@ -207,7 +208,6 @@
 
       // Build sidebar nav (colored icon tiles) — only pages this role may open.
       const navPages = allowedFor(session.role);
-      const bottomFirst = navPages.includes("reports") ? "reports" : "settings";
       const nav = document.getElementById("nav");
       const links = {};
       for (const page of navPages) {
@@ -216,7 +216,7 @@
         a.href = `#/p/${active}/${page}`;
         a.className = "nav-tile";
         a.innerHTML = `<span class="nav-ico" style="background:${n.color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span><span>${t("nav." + page)}</span>`;
-        if (page === bottomFirst) a.classList.add("mt-auto"); // push Reports/Settings to the bottom
+        if (page === "settings") a.classList.add("mt-auto"); // keep Settings as the bottom utility item
         nav.append(a);
         links[page] = a;
       }
