@@ -216,7 +216,7 @@
         a.href = `#/p/${active}/${page}`;
         a.className = "nav-tile";
         a.innerHTML = `<span class="nav-ico" style="background:${n.color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span><span>${t("nav." + page)}</span>`;
-        if (page === "settings") a.classList.add("mt-auto"); // keep Settings as the bottom utility item
+        if (page === "support") a.classList.add("mt-auto"); // keep Support/Settings as bottom utility items
         nav.append(a);
         links[page] = a;
       }
